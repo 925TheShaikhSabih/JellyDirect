@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- rounded "jelly" body -->
+    <path
+        android:fillColor="#FF8F7CFF"
+        android:pathData="M54,30 C66,30 76,38 76,50 L76,58 C76,70 66,78 54,78 C42,78 32,70 32,58 L32,50 C32,38 42,30 54,30 Z" />
+    <!-- play triangle -->
+    <path
+        android:fillColor="#FF0B0B0F"
+        android:pathData="M48,43 L48,65 L66,54 Z" />
+</vector>
