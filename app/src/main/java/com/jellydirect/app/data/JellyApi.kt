@@ -2,7 +2,9 @@ package com.jellydirect.app.data
 
 import android.os.Build
 import com.jellydirect.app.BuildConfig
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObjectBuilder
@@ -122,13 +124,14 @@ class JellyApi(
         }
     }
 
-    private suspend fun exec(req: Request): String {
+    // Callers run on the main thread; the body is read from the socket, so all of it happens on IO.
+    private suspend fun exec(req: Request): String = withContext(Dispatchers.IO) {
         http.newCall(req).await().use { resp ->
             val text = resp.body?.string().orEmpty()
             if (!resp.isSuccessful) {
                 throw ApiException(resp.code, "HTTP ${resp.code} ${resp.message}".trim())
             }
-            return text
+            text
         }
     }
 
