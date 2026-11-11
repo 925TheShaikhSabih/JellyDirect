@@ -47,9 +47,9 @@ data class HomeData(
 )
 
 private suspend fun loadHome(api: JellyApi): HomeData = coroutineScope {
-    val views = api.views()
     val resume = async { runCatching { api.resume() }.getOrDefault(emptyList()) }
     val next = async { runCatching { api.nextUp() }.getOrDefault(emptyList()) }
+    val views = api.views()
     val latest = views
         .filter { it.collectionType in setOf("movies", "tvshows", "homevideos", "boxsets") }
         .map { v -> async { v to runCatching { api.latest(v.id) }.getOrDefault(emptyList()) } }

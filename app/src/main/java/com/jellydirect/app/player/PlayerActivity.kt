@@ -220,7 +220,7 @@ class PlayerActivity : ComponentActivity() {
                 title = if (item.type == "Episode") (item.seriesName ?: item.name) else item.name
                 subtitle = if (item.type == "Episode") listOfNotNull(item.episodeCode, item.name).joinToString(" · ") else ""
                 if (p.isLive && channels.isEmpty()) {
-                    channels = runCatching { api.channels(limit = 500).items }.getOrDefault(emptyList())
+                    lifecycleScope.launch { channels = runCatching { api.channels(limit = 500).items }.getOrDefault(emptyList()) }
                 }
                 viewReady.await()
                 startedReport = false

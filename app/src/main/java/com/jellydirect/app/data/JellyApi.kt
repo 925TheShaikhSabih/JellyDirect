@@ -12,6 +12,7 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import okhttp3.Call
 import okhttp3.Callback
+import okhttp3.Dispatcher
 import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.MediaType.Companion.toMediaType
@@ -34,6 +35,8 @@ val AppJson = Json {
 /** One shared client: one connection pool for the API *and* for image loading. */
 val SharedHttp: OkHttpClient by lazy {
     OkHttpClient.Builder()
+        // Default is 5 parallel requests per host, which makes posters queue up behind each other on a long-latency link.
+        .dispatcher(Dispatcher().apply { maxRequests = 64; maxRequestsPerHost = 16 })
         .connectTimeout(12, TimeUnit.SECONDS)
         .readTimeout(25, TimeUnit.SECONDS)
         .writeTimeout(25, TimeUnit.SECONDS)
@@ -264,7 +267,8 @@ class JellyApi(
             "searchTerm" to q.search,
             "startIndex" to "${q.start}",
             "limit" to "${q.limit}",
-            "fields" to F_LIST,
+            "enableImageTypes" to "Primary,Backdrop,Thumb",
+            "imageTypeLimit" to "1",
         ),
     )
 
@@ -371,6 +375,14 @@ class JellyApi(
     suspend fun resolvePlayback(item: Item, mode: StreamMode, startTicks: Long): Playable {
         val live = item.isChannel || item.type == "Program"
         val itemId = if (item.type == "Program") (item.channelId ?: item.id) else item.id
+        if (!live && mode == StreamMode.DIRECT_URL) {
+            val s = item.mediaSources.firstOrNull()
+            val d = s?.path?.takeIf { isUsableRemoteUrl(it) }
+            if (s != null && d != null) {
+                // Skips the PlaybackInfo call, which can make a weak server probe the remote file first.
+                return Playable(item, s, null, d, staticStreamUrl(item.id, s, null), true, null, false)
+            }
+        }
         val info: PlaybackInfoResponse? = try { post(
             "/Items/$itemId/PlaybackInfo",
             mapOf(
@@ -394,7 +406,7 @@ class JellyApi(
             ?: throw IOException(info?.errorCode?.let { "Server refused playback ($it)" } ?: "No playable source for this item")
         val sessionId = info?.playSessionId
 
-        val staticUrl = staticStreamUrl(itemId, source, sessionId)
+        val staticUrl = (if (live) liveRelayUrl(source) else null) ?: staticStreamUrl(itemId, source, sessionId)
         val direct = source.path?.takeIf { isUsableRemoteUrl(it) }
 
         val useDirect = mode == StreamMode.DIRECT_URL && direct != null
@@ -408,6 +420,13 @@ class JellyApi(
             liveStreamId = source.liveStreamId,
             isLive = live,
         )
+    }
+
+    /** Jellyfin reports its live relay as a loopback address; swap in the address we actually reached it on. */
+    private fun liveRelayUrl(source: MediaSource): String? {
+        val u = try { source.path?.trim()?.toHttpUrl() } catch (_: Exception) { null } ?: return null
+        if (!u.encodedPath.startsWith("/LiveTv/LiveStreamFiles/")) return null
+        return url(u.encodedPath).newBuilder().addQueryParameter("api_key", token.orEmpty()).build().toString()
     }
 
     private fun isUsableRemoteUrl(path: String): Boolean {
