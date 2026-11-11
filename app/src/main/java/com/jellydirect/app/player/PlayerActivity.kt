@@ -260,11 +260,11 @@ class PlayerActivity : ComponentActivity() {
 
     private fun onError() {
         val p = cur ?: return
-        val fb = p.fallbackUrl
-        if (!triedFallback && fb != null) {
-            triedFallback = true
-            note = "Source link failed, using the server's raw stream"
-            cur = p.copy(url = fb, isDirectUrl = false, fallbackUrl = null)
+        val queue = listOfNotNull(p.fallbackUrl) + p.moreFallbacks
+        val fb = queue.firstOrNull()
+        if (fb != null) {
+            note = "That route failed, trying another"
+            cur = p.copy(url = fb, isDirectUrl = false, fallbackUrl = queue.getOrNull(1), moreFallbacks = queue.drop(2))
             open(fb, posMs)
         } else {
             buffering = false

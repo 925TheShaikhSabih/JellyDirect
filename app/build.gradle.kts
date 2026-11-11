@@ -30,6 +30,16 @@ android {
         }
     }
 
+    // Fixed key committed to the repo: every build is signed the same, so installs update in place and keep your login.
+    signingConfigs {
+        create("release") {
+            storeFile = file("jellydirect.jks")
+            storePassword = "jellydirect"
+            keyAlias = "jellydirect"
+            keyPassword = "jellydirect"
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = true
@@ -37,7 +47,7 @@ android {
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             // Signed with the debug key so the release APK is directly installable.
             // Swap in your own signingConfig if you ever publish this.
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.getByName("release")
         }
     }
 

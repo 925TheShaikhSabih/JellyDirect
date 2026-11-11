@@ -58,6 +58,8 @@ data class Playable(
     val isDirectUrl: Boolean,
     val liveStreamId: String?,
     val isLive: Boolean,
+    /** Further routes to try, in order, after [fallbackUrl]. */
+    val moreFallbacks: List<String> = emptyList(),
 )
 
 /** Query for the /Items endpoint. */
@@ -411,17 +413,54 @@ class JellyApi(
         // A path into the server's own live relay needs our api key, so it is never a "direct" link.
         val direct = source.path?.takeIf { isUsableRemoteUrl(it) && !it.contains("/LiveTv/LiveStreamFiles/") }
 
-        val useDirect = mode == StreamMode.DIRECT_URL && direct != null
+        val directOk = mode == StreamMode.DIRECT_URL
+        val hls = live && (source.container.equals("hls", true) || source.path?.contains(".m3u8", true) == true)
+        // Routes in order: straight from the source first, then through the server.
+        val routes = buildList<Pair<String, Boolean>> {
+            if (directOk && direct != null) add(direct to true)
+            // The server's own channel proxy is reported as 127.0.0.1; the phone can try it on the server's public address.
+            if (directOk && live) proxyOnServerHost(source.path)?.let { add(it to true) }
+            // HLS channels: Jellyfin's raw relay only returns the playlist text, so its HLS remux comes before it.
+            if (hls) add(hlsRemuxUrl(itemId, source, sessionId) to false)
+            add(staticUrl to false)
+        }
+        trace?.invoke("     routes: " + routes.joinToString(" | ") { (u, d) -> (if (d) "direct " else "server ") + maskUrl(u) })
         return Playable(
             item = item,
             source = source,
             playSessionId = sessionId,
-            url = if (useDirect) direct!! else staticUrl,
-            fallbackUrl = if (useDirect) staticUrl else null,
-            isDirectUrl = useDirect,
+            url = routes[0].first,
+            fallbackUrl = routes.getOrNull(1)?.first,
+            isDirectUrl = routes[0].second,
             liveStreamId = source.liveStreamId,
             isLive = live,
+            moreFallbacks = routes.drop(2).map { it.first },
         )
+    }
+
+    private fun proxyOnServerHost(path: String?): String? {
+        val p = try { path?.trim()?.toHttpUrl() } catch (_: Exception) { null } ?: return null
+        val loop = p.host == "localhost" || p.host.startsWith("127.") || p.host == "0.0.0.0" || p.host == "::1"
+        if (!loop) return null
+        val base = try { baseUrl.toHttpUrl() } catch (_: Exception) { return null }
+        return p.newBuilder().host(base.host).build().toString()
+    }
+
+    /** Jellyfin's own HLS endpoint: it copies the stream when it can, so the CPU cost on the server stays small. */
+    fun hlsRemuxUrl(itemId: String, source: MediaSource, playSessionId: String?): String {
+        val b = url("/Videos/$itemId/master.m3u8").newBuilder()
+        source.id?.let { b.addQueryParameter("MediaSourceId", it) }
+        source.liveStreamId?.let { b.addQueryParameter("LiveStreamId", it) }
+        playSessionId?.let { b.addQueryParameter("PlaySessionId", it) }
+        b.addQueryParameter("DeviceId", deviceId)
+        b.addQueryParameter("VideoCodec", "h264,hevc,mpeg2video")
+        b.addQueryParameter("AudioCodec", "aac,mp3,ac3,eac3,mp2")
+        b.addQueryParameter("SegmentContainer", "ts")
+        b.addQueryParameter("MinSegments", "1")
+        b.addQueryParameter("BreakOnNonKeyFrames", "true")
+        b.addQueryParameter("TranscodingMaxAudioChannels", "6")
+        token?.let { b.addQueryParameter("api_key", it) }
+        return b.build().toString()
     }
 
     /** Partly masked address for diagnostics: keeps host/shape, hides path segments and query values. */
@@ -446,7 +485,17 @@ class JellyApi(
         c.newCall(req).await().use { r ->
             val buf = ByteArray(4096)
             val n = try { r.body?.byteStream()?.read(buf) ?: -1 } catch (e: IOException) { -2 }
-            "HTTP ${r.code} type=${r.header("Content-Type")} bytes=$n" + (if (n > 0) " firstByte=0x" + "%02x".format(buf[0]) else "")
+            val head = "HTTP ${r.code} type=${r.header("Content-Type")} bytes=$n" + (if (n > 0) " firstByte=0x" + "%02x".format(buf[0]) else "")
+            if (n > 0 && buf[0] == 0x23.toByte()) {
+                val lines = String(buf, 0, n).lines().filter { it.isNotBlank() }.take(14).joinToString("\n          ") { l ->
+                    when {
+                        l.startsWith("#") -> l.take(70)
+                        l.startsWith("http", true) -> "URL " + maskUrl(l.trim())
+                        else -> "relative " + (if (l.startsWith("/")) "(absolute path) " else "") + "ext=" + l.substringBefore('?').substringAfterLast('.', "none").take(5) + " len=${l.length}"
+                    }
+                }
+                head + "\n     playlist:\n          " + lines
+            } else head
         }
     }
 
@@ -478,10 +527,8 @@ class JellyApi(
         val p = step("Resolve playback") { resolvePlayback(item ?: ch, StreamMode.DIRECT_URL, 0L, trace = { line(it) }) }
         if (p == null) return sb.toString()
         val urls = linkedMapOf<String, String>()
-        urls[if (p.isDirectUrl) "primary (direct link)" else "primary (via server)"] = p.url
-        p.fallbackUrl?.let { urls["fallback"] = it }
+        (listOfNotNull(p.url, p.fallbackUrl) + p.moreFallbacks).forEachIndexed { i, u -> urls["route ${i + 1}"] = u }
         urls["server static stream"] = staticStreamUrl(p.item.id, p.source, p.playSessionId)
-        liveRelayUrl(p.source)?.let { urls["server relay file"] = it }
         val seen = HashSet<String>()
         for ((label, u) in urls) {
             if (!seen.add(u)) continue
