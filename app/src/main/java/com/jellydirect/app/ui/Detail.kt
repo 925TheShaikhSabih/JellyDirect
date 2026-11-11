@@ -59,7 +59,10 @@ import com.jellydirect.app.data.positionMs
 import com.jellydirect.app.data.progress
 import com.jellydirect.app.data.runtimeMs
 import kotlinx.coroutines.launch
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.builtins.ListSerializer
 
+@Serializable
 private class DetailData(val item: Item, val seasons: List<Item>, val children: List<Item>)
 
 private suspend fun loadDetail(api: JellyApi, id: String): DetailData {
@@ -83,7 +86,7 @@ private suspend fun loadDetail(api: JellyApi, id: String): DetailData {
 fun DetailScreen(api: JellyApi, id: String, onOpen: (Item) -> Unit) {
     val ctx = LocalContext.current
     val scope = rememberCoroutineScope()
-    val loader = rememberLoad(api, "detail:$id") { loadDetail(api, id) }
+    val loader = rememberLoad(api, "detail:$id", DetailData.serializer()) { loadDetail(api, id) }
     val skipFirst = remember { booleanArrayOf(true) }
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
         if (skipFirst[0]) skipFirst[0] = false else loader.reload()
@@ -93,7 +96,7 @@ fun DetailScreen(api: JellyApi, id: String, onOpen: (Item) -> Unit) {
         val item = d.item
         var seasonId by remember(id) { mutableStateOf(d.seasons.firstOrNull()?.id) }
         val episodes = if (item.type == "Series" && seasonId != null) {
-            rememberLoad(api, "eps:$id:$seasonId") { api.episodes(id, seasonId) }
+            rememberLoad(api, "eps:$id:$seasonId", ListSerializer(Item.serializer())) { api.episodes(id, seasonId) }
         } else null
         val menu = remember { mutableStateOf<Item?>(null) }
         val played = item.userData?.played == true
@@ -127,9 +130,9 @@ fun DetailScreen(api: JellyApi, id: String, onOpen: (Item) -> Unit) {
                             item.runtimeMs.takeIf { it > 0 }?.let { formatDuration(it) },
                             item.rating?.let { "★ %.1f".format(it) },
                         ).joinToString("  ·  ")
-                        if (meta.isNotBlank()) Text(meta, color = Color(0xFFB4B4C0), style = MaterialTheme.typography.bodySmall)
+                        if (meta.isNotBlank()) Text(meta, color = Color(0xFFB0A8AE), style = MaterialTheme.typography.bodySmall)
                         if (item.genres.isNotEmpty()) {
-                            Text(item.genres.take(4).joinToString(", "), color = Color(0xFFB4B4C0), style = MaterialTheme.typography.bodySmall)
+                            Text(item.genres.take(4).joinToString(", "), color = Color(0xFFB0A8AE), style = MaterialTheme.typography.bodySmall)
                         }
                     }
                 }
@@ -170,11 +173,11 @@ fun DetailScreen(api: JellyApi, id: String, onOpen: (Item) -> Unit) {
                             Icon(
                                 if (fav) Icons.Filled.Star else Icons.Outlined.StarBorder,
                                 contentDescription = "Favorite",
-                                tint = if (fav) Color(0xFFFFD54F) else Color.White,
+                                tint = if (fav) Color(0xFFFFC15E) else Color.White,
                             )
                         }
                     }
-                    item.overview?.let { Text(it, color = Color(0xFFD0D0DA), style = MaterialTheme.typography.bodyMedium) }
+                    item.overview?.let { Text(it, color = Color(0xFFD6CFCF), style = MaterialTheme.typography.bodyMedium) }
                 }
             }
 
@@ -244,7 +247,7 @@ private fun EpisodeRow(ep: Item, api: JellyApi, onLong: (Item) -> Unit, onClick:
             )
             val sub = listOfNotNull(ep.runtimeMs.takeIf { it > 0 }?.let { formatDuration(it) }, if (ep.userData?.played == true) "Watched" else null)
             if (sub.isNotEmpty()) Text(sub.joinToString(" · "), color = Color.Gray, style = MaterialTheme.typography.bodySmall)
-            ep.overview?.let { Text(it, maxLines = 3, overflow = TextOverflow.Ellipsis, color = Color(0xFFB4B4C0), style = MaterialTheme.typography.bodySmall) }
+            ep.overview?.let { Text(it, maxLines = 3, overflow = TextOverflow.Ellipsis, color = Color(0xFFB0A8AE), style = MaterialTheme.typography.bodySmall) }
         }
     }
 }

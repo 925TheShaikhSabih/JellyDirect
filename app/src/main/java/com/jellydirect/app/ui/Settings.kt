@@ -1,6 +1,7 @@
 package com.jellydirect.app.ui
 
 import android.content.ClipData
+import com.jellydirect.app.BuildConfig
 import android.content.ClipboardManager
 import android.content.Context
 import androidx.compose.foundation.layout.Arrangement
@@ -78,7 +79,7 @@ fun SettingsScreen(onAddAccount: (String?) -> Unit) {
             api?.let { cur ->
                 OutlinedButton(onClick = { onAddAccount(cur.baseUrl) }) { Text("Add user on this server") }
             }
-            OutlinedButton(onClick = { onAddAccount(null) }) { Text("Add server") }
+            if (BuildConfig.FIXED_SERVER_URL.isBlank()) OutlinedButton(onClick = { onAddAccount(null) }) { Text("Add server") }
             OutlinedButton(onClick = {
                 accounts.firstOrNull { it.key == app.store.activeKey }?.let { MemCache.map.clear(); app.signOut(it) }
             }) { Text("Sign out") }
@@ -94,7 +95,7 @@ fun SettingsScreen(onAddAccount: (String?) -> Unit) {
             color = Color.Gray, style = MaterialTheme.typography.bodySmall,
         )
         Opt("Hardware decoding", s.hw, listOf(HwMode.AUTO to "Auto (software fallback)", HwMode.OFF to "Software only")) { v -> up { it.copy(hw = v) } }
-        Opt("Buffer", s.bufferMs, listOf(1500 to "Small", 3000 to "Normal", 8000 to "Large")) { v -> up { it.copy(bufferMs = v) } }
+        Opt("Buffer", s.bufferMs, listOf(1000 to "Fast start", 2000 to "Balanced", 6000 to "Smooth")) { v -> up { it.copy(bufferMs = v) } }
         Opt("Preferred audio language", s.audioLang, LANGS) { v -> up { it.copy(audioLang = v) } }
         Opt("Subtitles", s.subMode, listOf(SubMode.OFF to "Off", SubMode.AUTO to "Auto", SubMode.ALWAYS to "Always on")) { v -> up { it.copy(subMode = v) } }
         Opt("Preferred subtitle language", s.subLang, LANGS) { v -> up { it.copy(subLang = v) } }

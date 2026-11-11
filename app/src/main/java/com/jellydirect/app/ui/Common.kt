@@ -3,6 +3,11 @@ package com.jellydirect.app.ui
 import android.content.Context
 import android.content.Intent
 import androidx.compose.animation.core.animateFloatAsState
+import com.jellydirect.app.data.AppJson
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import kotlinx.serialization.KSerializer
+import java.io.File
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -68,10 +73,12 @@ import kotlinx.coroutines.launch
 
 val LocalIsTv = staticCompositionLocalOf { false }
 
-val Accent = Color(0xFF8F7CFF)
-val Surface1 = Color(0xFF15151C)
-val Surface2 = Color(0xFF1E1E28)
-val Bg = Color(0xFF0B0B0F)
+val Accent = Color(0xFFFF6A3D)
+val Gold = Color(0xFFFFC15E)
+val BrandBrush = androidx.compose.ui.graphics.Brush.linearGradient(listOf(Accent, Gold))
+val Surface1 = Color(0xFF171419)
+val Surface2 = Color(0xFF231F26)
+val Bg = Color(0xFF0D0B0E)
 
 // ------------------------------------------------------------------------------------------------
 // Loading helper with a tiny in-memory cache so going "back" shows the previous screen instantly.
@@ -89,19 +96,48 @@ object MemCache {
 
 class Loader<T>(val state: State<Load<T>>, val reload: () -> Unit)
 
+private fun cacheFile(ctx: Context, ck: String): File {
+    val h = java.security.MessageDigest.getInstance("SHA-1").digest(ck.toByteArray()).joinToString("") { "%02x".format(it) }
+    return File(ctx.cacheDir, "api/$h.json")
+}
+
+private fun <T> readDisk(ctx: Context, ck: String, ser: KSerializer<T>): T? = try {
+    val f = cacheFile(ctx, ck)
+    if (f.exists()) AppJson.decodeFromString(ser, f.readText()) else null
+} catch (_: Exception) {
+    null
+}
+
+private fun <T> writeDisk(ctx: Context, ck: String, ser: KSerializer<T>, v: T) {
+    try {
+        val f = cacheFile(ctx, ck)
+        f.parentFile?.mkdirs()
+        f.writeText(AppJson.encodeToString(ser, v))
+    } catch (_: Exception) {
+    }
+}
+
+/**
+ * Loads data, showing the last result instantly (memory, or disk when [ser] is given) while a fresh copy
+ * is fetched in the background, so screens open immediately even on a slow link.
+ */
 @Composable
-fun <T : Any> rememberLoad(api: JellyApi, key: String, block: suspend () -> T): Loader<T> {
+fun <T : Any> rememberLoad(api: JellyApi, key: String, ser: KSerializer<T>? = null, block: suspend () -> T): Loader<T> {
+    val ctx = LocalContext.current.applicationContext
     val ck = "${api.baseUrl}|${api.userId}|$key"
     var tick by remember(ck) { mutableIntStateOf(0) }
     val st = remember(ck) {
         @Suppress("UNCHECKED_CAST")
-        mutableStateOf<Load<T>>(MemCache.map[ck]?.let { Load.Ok(it as T) } ?: Load.Busy)
+        val mem = MemCache.map[ck] as T?
+        val disk = if (mem == null && ser != null) readDisk(ctx, ck, ser) else null
+        mutableStateOf<Load<T>>((mem ?: disk)?.let { Load.Ok(it) } ?: Load.Busy)
     }
     LaunchedEffect(ck, tick) {
         try {
             val v = block()
             MemCache.map[ck] = v
             st.value = Load.Ok(v)
+            if (ser != null) withContext(Dispatchers.IO) { writeDisk(ctx, ck, ser, v) }
         } catch (e: kotlinx.coroutines.CancellationException) {
             throw e
         } catch (e: Exception) {
@@ -209,7 +245,7 @@ fun PosterCard(
                 Icon(
                     Icons.Filled.Star,
                     contentDescription = "Favorite",
-                    tint = Color(0xFFFFD54F),
+                    tint = Color(0xFFFFC15E),
                     modifier = Modifier.align(Alignment.TopStart).padding(6.dp).width(16.dp).height(16.dp),
                 )
             }

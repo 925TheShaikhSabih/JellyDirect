@@ -36,6 +36,7 @@ import com.jellydirect.app.data.ItemQuery
 import com.jellydirect.app.data.JellyApi
 import kotlinx.coroutines.launch
 import java.util.UUID
+import kotlinx.serialization.builtins.ListSerializer
 
 /** Lets a screen hand a query to the generic list screen without encoding it into the route. */
 object ListSpecs {
@@ -49,7 +50,7 @@ object ListSpecs {
 /** Libraries index: one wide tile per library. */
 @Composable
 fun LibrariesScreen(api: JellyApi, onOpenLibrary: (Item) -> Unit) {
-    val loader = rememberLoad(api, "views") { api.views() }
+    val loader = rememberLoad(api, "views", ListSerializer(Item.serializer())) { api.views() }
     loader.Show { views ->
         val tv = LocalIsTv.current
         LazyVerticalGrid(

@@ -42,6 +42,7 @@ import java.time.Duration
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+import kotlinx.serialization.builtins.ListSerializer
 
 private enum class LiveTab(val label: String) { CHANNELS("Channels"), GUIDE("Guide"), FAVORITES("Favorites") }
 
@@ -51,7 +52,7 @@ private val timeFmt: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm").wi
 fun LiveTvScreen(api: JellyApi) {
     val ctx = LocalContext.current
     var tab by rememberSaveable { mutableStateOf(LiveTab.CHANNELS) }
-    val loader = rememberLoad(api, "channels:${tab == LiveTab.FAVORITES}") {
+    val loader = rememberLoad(api, "channels:${tab == LiveTab.FAVORITES}", ListSerializer(Item.serializer())) {
         api.channels(limit = 500, favoritesOnly = tab == LiveTab.FAVORITES).items
     }
     Column(Modifier.fillMaxSize().statusBarsPadding()) {
@@ -95,7 +96,7 @@ private fun ChannelRow(ch: Item, api: JellyApi, onClick: () -> Unit) {
                 maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.titleMedium,
             )
             if (now != null) {
-                Text(now.name, maxLines = 1, overflow = TextOverflow.Ellipsis, color = Color(0xFFB4B4C0), style = MaterialTheme.typography.bodySmall)
+                Text(now.name, maxLines = 1, overflow = TextOverflow.Ellipsis, color = Color(0xFFB0A8AE), style = MaterialTheme.typography.bodySmall)
                 val s = now.parsedStart()
                 val e = now.parsedEnd()
                 if (s != null && e != null && e.isAfter(s)) {

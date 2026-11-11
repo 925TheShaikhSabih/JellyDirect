@@ -19,6 +19,20 @@ android {
         versionName = "1.0.0"
     }
 
+    flavorDimensions += "edition"
+    productFlavors {
+        create("standard") {
+            dimension = "edition"
+            buildConfigField("String", "FIXED_SERVER_URL", "\"\"")
+        }
+        // Same app with the server address built in: no setup screen, just sign in.
+        create("server") {
+            dimension = "edition"
+            applicationIdSuffix = ".server"
+            buildConfigField("String", "FIXED_SERVER_URL", "\"http://140.245.81.217:8096\"")
+        }
+    }
+
     // One small APK per CPU architecture (libVLC's native libraries are the bulk of the size),
     // plus a universal APK that installs anywhere.
     splits {

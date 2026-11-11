@@ -20,7 +20,7 @@ data class Settings(
     val autoNext: Boolean = true,
     val skipBackSec: Int = 10,
     val skipFwdSec: Int = 30,
-    val bufferMs: Int = 3000,
+    val bufferMs: Int = 2000,
 )
 
 /** Accounts + settings, in app-private SharedPreferences. */

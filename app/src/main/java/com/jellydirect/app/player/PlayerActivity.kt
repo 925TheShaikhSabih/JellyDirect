@@ -605,7 +605,7 @@ class PlayerActivity : ComponentActivity() {
             val n = nextEp
             if (n != null && !nextDismissed && !isLive && lenMs > 0 && lenMs - posMs < 20_000L && !inPip && !controls) {
                 Column(
-                    Modifier.align(Alignment.BottomEnd).padding(24.dp).background(Color(0xDD15151C), RoundedCornerShape(12.dp)).padding(14.dp),
+                    Modifier.align(Alignment.BottomEnd).padding(24.dp).background(Color(0xDD171419), RoundedCornerShape(12.dp)).padding(14.dp),
                     verticalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
                     Text("Up next", color = Accent, style = MaterialTheme.typography.labelLarge)
@@ -631,7 +631,7 @@ class PlayerActivity : ComponentActivity() {
                 IconButton(onClick = { finish() }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = Color.White) }
                 Column(Modifier.weight(1f)) {
                     Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.titleMedium)
-                    if (subtitle.isNotBlank()) Text(subtitle, maxLines = 1, overflow = TextOverflow.Ellipsis, color = Color(0xFFB4B4C0), style = MaterialTheme.typography.bodySmall)
+                    if (subtitle.isNotBlank()) Text(subtitle, maxLines = 1, overflow = TextOverflow.Ellipsis, color = Color(0xFFB0A8AE), style = MaterialTheme.typography.bodySmall)
                 }
                 if (isLive) Text("● LIVE", color = Color(0xFFFF6B6B), modifier = Modifier.padding(end = 12.dp))
             }
@@ -696,7 +696,7 @@ class PlayerActivity : ComponentActivity() {
         val curS = mp.getSpuTrack()
         AlertDialog(
             onDismissRequest = { showTracks = false },
-            containerColor = Color(0xFF1E1E28),
+            containerColor = Color(0xFF231F26),
             title = { Text("Audio & subtitles") },
             text = {
                 Column(Modifier.verticalScroll(rememberScrollState())) {

@@ -34,7 +34,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: JellyDirect-apks
-          path: app/build/outputs/apk/release/*.apk
+          path: app/build/outputs/apk/*/release/*.apk
           if-no-files-found: error
 
       # Publishes the APKs as plain downloadable files on the repo's Releases page (no zip).
@@ -42,7 +42,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "build-${{ github.run_number }}" app/build/outputs/apk/release/*.apk \
+          gh release create "build-${{ github.run_number }}" app/build/outputs/apk/*/release/*.apk \
             --title "JellyDirect build ${{ github.run_number }}" \
             --notes "Automated build of ${GITHUB_SHA::7}" \
             --target "$GITHUB_SHA"

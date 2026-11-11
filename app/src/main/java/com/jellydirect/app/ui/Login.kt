@@ -1,6 +1,9 @@
 package com.jellydirect.app.ui
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.ui.graphics.Brush
+import com.jellydirect.app.BuildConfig
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -58,6 +61,7 @@ fun normalizeServerUrl(raw: String): String {
 fun AuthScreen(onDone: () -> Unit, onCancel: (() -> Unit)? = null, presetUrl: String? = null) {
     val app = currentApp()
     val scope = rememberCoroutineScope()
+    val fixed = BuildConfig.FIXED_SERVER_URL.takeIf { it.isNotBlank() }
     var url by remember { mutableStateOf("") }
     var info by remember { mutableStateOf<PublicInfo?>(null) }
     var api by remember { mutableStateOf<JellyApi?>(null) }
@@ -136,17 +140,22 @@ fun AuthScreen(onDone: () -> Unit, onCancel: (() -> Unit)? = null, presetUrl: St
     }
 
     LaunchedEffect(Unit) {
-        if (presetUrl != null) { url = presetUrl; connect() }
+        (presetUrl ?: fixed)?.let { url = it; connect() }
     }
 
-    Box(Modifier.fillMaxSize().padding(24.dp), contentAlignment = Alignment.Center) {
+    Box(
+        Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color(0xFF2A130C), Bg))).padding(24.dp),
+        contentAlignment = Alignment.Center,
+    ) {
         Column(
             Modifier.widthIn(max = 420.dp).verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(12.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Text("JellyDirect", style = MaterialTheme.typography.titleLarge, color = Accent)
-            if (info == null) {
+            Text("JellyDirect", style = MaterialTheme.typography.titleLarge.copy(brush = BrandBrush))
+            if (info == null && fixed != null) {
+                Button(onClick = { connect() }, enabled = !busy) { Text(if (busy) "Connecting..." else "Retry") }
+            } else if (info == null) {
                 OutlinedTextField(
                     value = url, onValueChange = { url = it }, label = { Text("Server address") },
                     placeholder = { Text("192.168.1.10:8096 or https://jelly.example.com") },
@@ -176,7 +185,7 @@ fun AuthScreen(onDone: () -> Unit, onCancel: (() -> Unit)? = null, presetUrl: St
                 if (qcEnabled) {
                     OutlinedButton(onClick = { quickConnect() }, enabled = !busy && qcCode == null, modifier = Modifier.fillMaxWidth()) { Text("Quick Connect") }
                 }
-                TextButton(onClick = { info = null; api = null; qcCode = null; error = null }) { Text("Change server") }
+                if (fixed == null) TextButton(onClick = { info = null; api = null; qcCode = null; error = null }) { Text("Change server") }
             }
             if (busy) CircularProgressIndicator(color = Accent)
             error?.let { Text(it, color = MaterialTheme.colorScheme.error) }

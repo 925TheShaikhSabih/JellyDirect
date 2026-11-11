@@ -12,6 +12,7 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import okhttp3.Call
 import okhttp3.Callback
+import okhttp3.ConnectionPool
 import okhttp3.Dispatcher
 import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrl
@@ -36,7 +37,8 @@ val AppJson = Json {
 val SharedHttp: OkHttpClient by lazy {
     OkHttpClient.Builder()
         // Default is 5 parallel requests per host, which makes posters queue up behind each other on a long-latency link.
-        .dispatcher(Dispatcher().apply { maxRequests = 64; maxRequestsPerHost = 16 })
+        .dispatcher(Dispatcher().apply { maxRequests = 64; maxRequestsPerHost = 24 })
+        .connectionPool(ConnectionPool(12, 10, TimeUnit.MINUTES))
         .connectTimeout(12, TimeUnit.SECONDS)
         .readTimeout(25, TimeUnit.SECONDS)
         .writeTimeout(25, TimeUnit.SECONDS)

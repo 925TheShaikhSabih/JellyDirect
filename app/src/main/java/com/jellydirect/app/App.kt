@@ -9,7 +9,11 @@ import com.jellydirect.app.data.Account
 import com.jellydirect.app.data.JellyApi
 import com.jellydirect.app.data.SharedHttp
 import com.jellydirect.app.data.Store
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.StateFlow
 
 class App : Application(), ImageLoaderFactory {
@@ -34,6 +38,15 @@ class App : Application(), ImageLoaderFactory {
             previous?.uncaughtException(t, e)
         }
         store.activeAccount()?.let { _api.value = apiFor(it) }
+        warm(_api.value)
+    }
+
+    private val bg = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    /** Opens a few connections to the server up front so the first screens do not wait on TCP setup. */
+    private fun warm(api: JellyApi?) {
+        if (api == null) return
+        repeat(4) { bg.launch { runCatching { api.publicInfo() } } }
     }
 
     fun apiFor(a: Account) = JellyApi(a.serverUrl, store.deviceId, a.token, a.userId)
@@ -42,11 +55,13 @@ class App : Application(), ImageLoaderFactory {
     fun signIn(a: Account) {
         store.addAccount(a)
         _api.value = apiFor(a)
+        warm(_api.value)
     }
 
     fun switchTo(a: Account) {
         store.activeKey = a.key
         _api.value = apiFor(a)
+        warm(_api.value)
     }
 
     fun signOut(a: Account) {

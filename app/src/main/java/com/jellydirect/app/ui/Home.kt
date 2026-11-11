@@ -36,14 +36,19 @@ import coil.compose.AsyncImage
 import com.jellydirect.app.data.Item
 import com.jellydirect.app.data.JellyApi
 import com.jellydirect.app.data.isPlayable
+import kotlinx.serialization.Serializable
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 
+@Serializable
+data class LatestRow(val view: Item, val items: List<Item>)
+
+@Serializable
 data class HomeData(
     val views: List<Item>,
     val resume: List<Item>,
     val nextUp: List<Item>,
-    val latest: List<Pair<Item, List<Item>>>,
+    val latest: List<LatestRow>,
 )
 
 private suspend fun loadHome(api: JellyApi): HomeData = coroutineScope {
@@ -52,21 +57,21 @@ private suspend fun loadHome(api: JellyApi): HomeData = coroutineScope {
     val views = api.views()
     val latest = views
         .filter { it.collectionType in setOf("movies", "tvshows", "homevideos", "boxsets") }
-        .map { v -> async { v to runCatching { api.latest(v.id) }.getOrDefault(emptyList()) } }
-    HomeData(views, resume.await(), next.await(), latest.map { it.await() }.filter { it.second.isNotEmpty() })
+        .map { v -> async { LatestRow(v, runCatching { api.latest(v.id) }.getOrDefault(emptyList())) } }
+    HomeData(views, resume.await(), next.await(), latest.map { it.await() }.filter { it.items.isNotEmpty() })
 }
 
 @Composable
 fun HomeScreen(api: JellyApi, onOpen: (Item) -> Unit, onOpenLibrary: (Item) -> Unit) {
     val ctx = LocalContext.current
-    val loader = rememberLoad(api, "home") { loadHome(api) }
+    val loader = rememberLoad(api, "home", HomeData.serializer()) { loadHome(api) }
     val menu = remember { mutableStateOf<Item?>(null) }
     val skipFirst = remember { booleanArrayOf(true) }
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
         if (skipFirst[0]) skipFirst[0] = false else loader.reload()
     }
     loader.Show { d ->
-        val hero = d.resume.firstOrNull() ?: d.nextUp.firstOrNull() ?: d.latest.firstOrNull()?.second?.firstOrNull()
+        val hero = d.resume.firstOrNull() ?: d.nextUp.firstOrNull() ?: d.latest.firstOrNull()?.items?.firstOrNull()
         LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 24.dp)) {
             if (hero != null) item { Hero(hero, api, onPlay = { if (it.isPlayable) playItem(ctx, it.id) else onOpen(it) }, onInfo = onOpen) }
             else item { Box(Modifier.statusBarsPadding().height(8.dp)) }
@@ -79,7 +84,7 @@ fun HomeScreen(api: JellyApi, onOpen: (Item) -> Unit, onOpenLibrary: (Item) -> U
             item {
                 ItemRow("Next Up", d.nextUp, api, wide = true, onLong = { menu.value = it }) { playItem(ctx, it.id) }
             }
-            items(d.latest, key = { it.first.id }) { (view, list) ->
+            items(d.latest, key = { it.view.id }) { (view, list) ->
                 ItemRow("Latest in ${view.name}", list, api, onLong = { menu.value = it }, onClick = onOpen)
             }
         }
@@ -108,7 +113,7 @@ private fun Hero(item: Item, api: JellyApi, onPlay: (Item) -> Unit, onInfo: (Ite
                 style = MaterialTheme.typography.titleLarge, maxLines = 1, overflow = TextOverflow.Ellipsis,
             )
             item.overview?.let {
-                Text(it, maxLines = 2, overflow = TextOverflow.Ellipsis, color = Color(0xFFD0D0DA), style = MaterialTheme.typography.bodySmall,
+                Text(it, maxLines = 2, overflow = TextOverflow.Ellipsis, color = Color(0xFFD6CFCF), style = MaterialTheme.typography.bodySmall,
                     modifier = Modifier.fillMaxWidth(0.8f))
             }
             Row2(onPlay = { onPlay(item) }, onInfo = { onInfo(item) })
