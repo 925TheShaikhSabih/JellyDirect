@@ -368,7 +368,7 @@ class JellyApi(
     suspend fun resolvePlayback(item: Item, mode: StreamMode, startTicks: Long): Playable {
         val live = item.isChannel || item.type == "Program"
         val itemId = if (item.type == "Program") (item.channelId ?: item.id) else item.id
-        val info: PlaybackInfoResponse = post(
+        val info: PlaybackInfoResponse? = try { post(
             "/Items/$itemId/PlaybackInfo",
             mapOf(
                 "userId" to uid(),
@@ -379,18 +379,26 @@ class JellyApi(
                 "enableDirectStream" to "true",
                 "enableTranscoding" to "false",
             ),
-        )
-        info.errorCode?.let { throw IOException("Server refused playback ($it)") }
-        val source = info.mediaSources.firstOrNull() ?: throw IOException("No playable source for this item")
+        ) } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            if (item.mediaSources.isEmpty()) throw e
+            null
+        }
+        // An error code here usually means "the server would have to transcode". We never ask for that,
+        // so fall back to the item's own source and play it raw.
+        val source = info?.mediaSources?.firstOrNull() ?: item.mediaSources.firstOrNull()
+            ?: throw IOException(info?.errorCode?.let { "Server refused playback ($it)" } ?: "No playable source for this item")
+        val sessionId = info?.playSessionId
 
-        val staticUrl = staticStreamUrl(itemId, source, info.playSessionId)
+        val staticUrl = staticStreamUrl(itemId, source, sessionId)
         val direct = source.path?.takeIf { isUsableRemoteUrl(it) }
 
         val useDirect = mode == StreamMode.DIRECT_URL && direct != null
         return Playable(
             item = item,
             source = source,
-            playSessionId = info.playSessionId,
+            playSessionId = sessionId,
             url = if (useDirect) direct!! else staticUrl,
             fallbackUrl = if (useDirect) staticUrl else null,
             isDirectUrl = useDirect,

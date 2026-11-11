@@ -93,9 +93,7 @@ private fun NavHostController.top(route: String) = navigate(route) {
 private fun Shell(api: JellyApi) {
     val nav = rememberNavController()
     val tv = LocalIsTv.current
-    val views = rememberLoad(api, "views") { api.views() }
-    val hasLive = ((views.state.value as? com.jellydirect.app.ui.Load.Ok)?.v ?: emptyList()).any { it.collectionType == "livetv" }
-    val dests = listOfNotNull(HOME, LIBS, if (hasLive) LIVE else null, SEARCH, SETTINGS)
+    val dests = listOf(HOME, LIBS, LIVE, SEARCH, SETTINGS)
     val route = nav.currentBackStackEntryAsState().value?.destination?.route
     val showNav = route == null || dests.any { it.route == route }
 

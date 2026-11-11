@@ -203,7 +203,10 @@ class PlayerActivity : ComponentActivity() {
     // Loading + playback
     // ----------------------------------------------------------------------------------------
 
-    private fun play(id: String, fromStart: Boolean) {
+    private var lastId: String? = null
+
+    private fun play(id: String, fromStart: Boolean, forceServer: Boolean = false) {
+        lastId = id
         loadJob?.cancel()
         loadJob = lifecycleScope.launch {
             error = null; buffering = true; nextEp = null; nextDismissed = false; triedFallback = false
@@ -211,7 +214,7 @@ class PlayerActivity : ComponentActivity() {
             try {
                 val item = api.item(id)
                 val ticks = if (fromStart || item.progress >= 0.95f) 0L else (item.userData?.positionTicks ?: 0L)
-                val p = api.resolvePlayback(item, settings.streamMode, ticks)
+                val p = api.resolvePlayback(item, if (forceServer) com.jellydirect.app.data.StreamMode.SERVER else settings.streamMode, ticks)
                 cur = p
                 isLive = p.isLive
                 title = if (item.type == "Episode") (item.seriesName ?: item.name) else item.name
@@ -225,7 +228,7 @@ class PlayerActivity : ComponentActivity() {
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                error = e.message ?: "Can't start playback"
+                error = "Can't start playback: " + (e.message ?: e.javaClass.simpleName)
                 buffering = false
             }
         }
@@ -265,7 +268,9 @@ class PlayerActivity : ComponentActivity() {
             open(fb, posMs)
         } else {
             buffering = false
-            error = "This video couldn't be played. The source may be offline or the link may have expired."
+            val host = runCatching { Uri.parse(p.url).host }.getOrNull().orEmpty()
+            error = "Couldn't open the stream (" + (if (p.isDirectUrl) "direct link on $host" else "server stream from $host") +
+                "). The source may be offline, blocked, or its link may have expired."
         }
     }
 
@@ -589,7 +594,8 @@ class PlayerActivity : ComponentActivity() {
                     verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text(error!!, color = Color.White)
                     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        Button(onClick = { intent.getStringExtra(EXTRA_ID)?.let { play(cur?.item?.id ?: it, false) } }) { Text("Retry") }
+                        Button(onClick = { lastId?.let { play(it, false) } }) { Text("Retry") }
+                        TextButton(onClick = { lastId?.let { play(it, false, forceServer = true) } }) { Text("Try via server") }
                         TextButton(onClick = { finish() }) { Text("Close") }
                     }
                 }

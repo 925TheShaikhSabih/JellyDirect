@@ -61,7 +61,7 @@ fun LiveTvScreen(api: JellyApi) {
         }
         loader.Show { channels ->
             if (channels.isEmpty()) {
-                Box(Modifier.fillMaxSize(), Alignment.Center) { Text("No channels", color = Color.Gray) }
+                Box(Modifier.fillMaxSize(), Alignment.Center) { Text("No channels returned. Check that Live TV is set up and enabled for this user in Jellyfin.", color = Color.Gray, modifier = Modifier.padding(24.dp)) }
             } else if (tab == LiveTab.GUIDE) {
                 Guide(api, channels.take(100))
             } else {

@@ -87,7 +87,7 @@ fun AuthScreen(onDone: () -> Unit, onCancel: (() -> Unit)? = null, presetUrl: St
                 api = a
                 url = base
             } catch (e: Exception) {
-                error = "Can't reach the server: ${e.message}"
+                error = "Can't reach the server: ${e.message ?: e.javaClass.simpleName}"
             }
             busy = false
         }
@@ -101,7 +101,7 @@ fun AuthScreen(onDone: () -> Unit, onCancel: (() -> Unit)? = null, presetUrl: St
             try {
                 finish(a.login(user.trim(), pass), url, i)
             } catch (e: Exception) {
-                error = if ((e as? com.jellydirect.app.data.ApiException)?.code == 401) "Wrong username or password" else "Sign-in failed: ${e.message}"
+                error = if ((e as? com.jellydirect.app.data.ApiException)?.code == 401) "Wrong username or password" else "Sign-in failed: ${e.message ?: e.javaClass.simpleName}"
             }
             busy = false
         }
@@ -130,7 +130,7 @@ fun AuthScreen(onDone: () -> Unit, onCancel: (() -> Unit)? = null, presetUrl: St
             } catch (e: Exception) {
                 qcCode = null
                 busy = false
-                error = "Quick Connect failed: ${e.message}"
+                error = "Quick Connect failed: ${e.message ?: e.javaClass.simpleName}"
             }
         }
     }
