@@ -24,6 +24,15 @@ class App : Application(), ImageLoaderFactory {
     override fun onCreate() {
         super.onCreate()
         store = Store(this)
+        val previous = Thread.getDefaultUncaughtExceptionHandler()
+        Thread.setDefaultUncaughtExceptionHandler { t, e ->
+            try {
+                getSharedPreferences("jd", MODE_PRIVATE).edit()
+                    .putString("lastCrash", android.util.Log.getStackTraceString(e).take(2500)).commit()
+            } catch (_: Throwable) {
+            }
+            previous?.uncaughtException(t, e)
+        }
         store.activeAccount()?.let { _api.value = apiFor(it) }
     }
 

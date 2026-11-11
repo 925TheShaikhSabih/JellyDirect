@@ -39,6 +39,8 @@ data class MediaSource(
     @SerialName("LiveStreamId") val liveStreamId: String? = null,
     @SerialName("RequiresClosing") val requiresClosing: Boolean = false,
     @SerialName("RequiresOpening") val requiresOpening: Boolean = false,
+    @SerialName("TranscodingUrl") val transcodingUrl: String? = null,
+    @SerialName("SupportsTranscoding") val supportsTranscoding: Boolean = false,
     @SerialName("MediaStreams") val streams: List<MediaStream> = emptyList(),
 )
 

@@ -392,10 +392,12 @@ class JellyApi(
                 "startTimeTicks" to if (startTicks > 0) "$startTicks" else null,
                 "autoOpenLiveStream" to if (live) "true" else null,
                 "isPlayback" to "true",
-                "enableDirectPlay" to "true",
+                "enableDirectPlay" to if (live) "false" else "true",
                 "enableDirectStream" to "true",
-                "enableTranscoding" to "false",
+                "enableTranscoding" to if (live) "true" else "false",
             ),
+            // Live TV asks Jellyfin for its own copy-remuxed HLS stream (what the official clients do).
+            body = if (live) liveProfileBody(uid()) else "{}",
         ) } catch (e: kotlinx.coroutines.CancellationException) {
             throw e
         } catch (e: Exception) {
@@ -407,7 +409,7 @@ class JellyApi(
         val source = info?.mediaSources?.firstOrNull() ?: item.mediaSources.firstOrNull()
             ?: throw IOException(info?.errorCode?.let { "Server refused playback ($it)" } ?: "No playable source for this item")
         val sessionId = info?.playSessionId
-        trace?.invoke("     PlaybackInfo: error=${info?.errorCode} sources=${info?.mediaSources?.size} -> id=${source.id} protocol=${source.protocol} remote=${source.isRemote} container=${source.container} liveStreamId=${source.liveStreamId} path=${maskUrl(source.path)}")
+        trace?.invoke("     PlaybackInfo: error=${info?.errorCode} sources=${info?.mediaSources?.size} -> id=${source.id} protocol=${source.protocol} remote=${source.isRemote} container=${source.container} liveStreamId=${source.liveStreamId} path=${maskUrl(source.path)} transcodingUrl=${maskUrl(source.transcodingUrl?.let { if (it.startsWith("http")) it else baseUrl + it })}")
 
         val staticUrl = (if (live) liveRelayUrl(source) else null) ?: staticStreamUrl(itemId, source, sessionId)
         // A path into the server's own live relay needs our api key, so it is never a "direct" link.
@@ -416,10 +418,16 @@ class JellyApi(
         val directOk = mode == StreamMode.DIRECT_URL
         val hls = live && (source.container.equals("hls", true) || source.path?.contains(".m3u8", true) == true)
         // Routes in order: straight from the source first, then through the server.
+        val tUrl = if (live) source.transcodingUrl?.let { t ->
+            val abs = if (t.startsWith("http", true)) t else baseUrl + (if (t.startsWith("/")) t else "/$t")
+            if (abs.contains("api_key=", true)) abs else abs + (if (abs.contains("?")) "&" else "?") + "api_key=" + token.orEmpty()
+        } else null
         val routes = buildList<Pair<String, Boolean>> {
+            if (hls && tUrl != null) add(tUrl to false)
             if (directOk && direct != null) add(direct to true)
             // The server's own channel proxy is reported as 127.0.0.1; the phone can try it on the server's public address.
             if (directOk && live) proxyOnServerHost(source.path)?.let { add(it to true) }
+            if (!hls && tUrl != null) add(tUrl to false)
             // HLS channels: Jellyfin's raw relay only returns the playlist text, so its HLS remux comes before it.
             if (hls) add(hlsRemuxUrl(itemId, source, sessionId) to false)
             add(staticUrl to false)
@@ -437,6 +445,12 @@ class JellyApi(
             moreFallbacks = routes.drop(2).map { it.first },
         )
     }
+
+    private fun liveProfileBody(userId: String): String =
+        """{"UserId":"$userId","MaxStreamingBitrate":120000000,"AutoOpenLiveStream":true,"EnableDirectPlay":false,"EnableDirectStream":true,"EnableTranscoding":true,"AllowVideoStreamCopy":true,"AllowAudioStreamCopy":true,""" +
+            """"DeviceProfile":{"Name":"JellyDirect","MaxStreamingBitrate":120000000,"DirectPlayProfiles":[],"TranscodingProfiles":[""" +
+            """{"Container":"ts","Type":"Video","VideoCodec":"h264,hevc,mpeg2video","AudioCodec":"aac,mp3,ac3,eac3,mp2","Protocol":"hls","Context":"Streaming","MaxAudioChannels":"6","MinSegments":1,"BreakOnNonKeyFrames":true}],""" +
+            """"CodecProfiles":[],"SubtitleProfiles":[]}}"""
 
     private fun proxyOnServerHost(path: String?): String? {
         val p = try { path?.trim()?.toHttpUrl() } catch (_: Exception) { null } ?: return null

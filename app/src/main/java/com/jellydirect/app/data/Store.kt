@@ -78,5 +78,12 @@ class Store(ctx: Context) {
         if (activeKey == key) activeKey = _accounts.value.firstOrNull()?.key
     }
 
+    /** Returns (and clears) the stack trace saved by the last crash, if any. */
+    fun takeLastCrash(): String? {
+        val c = sp.getString("lastCrash", null) ?: return null
+        sp.edit().remove("lastCrash").apply()
+        return c
+    }
+
     fun activeAccount(): Account? = _accounts.value.firstOrNull { it.key == activeKey }
 }

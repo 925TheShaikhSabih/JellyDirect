@@ -27,6 +27,10 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import com.jellydirect.app.ui.CrashDialog
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -65,6 +69,8 @@ class MainActivity : ComponentActivity() {
             JellyTheme {
                 CompositionLocalProvider(LocalIsTv provides tv) {
                     val api by app.api.collectAsState()
+                    var crash by remember { mutableStateOf(app.store.takeLastCrash()) }
+                    crash?.let { CrashDialog(it) { crash = null } }
                     Box(Modifier.fillMaxSize()) {
                         val a = api
                         if (a == null) AuthScreen(onDone = {}) else Shell(a)
