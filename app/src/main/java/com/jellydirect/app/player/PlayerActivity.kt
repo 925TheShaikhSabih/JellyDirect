@@ -166,6 +166,7 @@ class PlayerActivity : ComponentActivity() {
 
         WindowCompat.setDecorFitsSystemWindows(window, false)
         hideBars()
+        window.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
         vlc = LibVLC(this, arrayListOf("--audio-time-stretch", "--http-reconnect"))
         mp = MediaPlayer(vlc)
