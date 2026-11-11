@@ -1,6 +1,19 @@
 package com.jellydirect.app.ui
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.text.selection.SelectionContainer
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontFamily
+import com.jellydirect.app.data.JellyApi
+import kotlinx.coroutines.launch
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -88,6 +101,40 @@ fun SettingsScreen(onAddAccount: (String?) -> Unit) {
         Opt("Play next episode automatically", s.autoNext, listOf(true to "On", false to "Off")) { v -> up { it.copy(autoNext = v) } }
         Opt("Skip back", s.skipBackSec, listOf(5 to "5s", 10 to "10s", 15 to "15s")) { v -> up { it.copy(skipBackSec = v) } }
         Opt("Skip forward", s.skipFwdSec, listOf(10 to "10s", 30 to "30s", 60 to "60s")) { v -> up { it.copy(skipFwdSec = v) } }
+        api?.let { LiveDiag(it) }
+    }
+}
+
+@Composable
+private fun LiveDiag(api: JellyApi) {
+    val ctx = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var filter by remember { mutableStateOf("") }
+    var out by remember { mutableStateOf("") }
+    var busy by remember { mutableStateOf(false) }
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text("Live TV diagnostics", style = MaterialTheme.typography.titleMedium)
+        Text(
+            "Tests one channel step by step and shows what the server returns. Addresses are partly masked; check it before sharing.",
+            color = Color.Gray, style = MaterialTheme.typography.bodySmall,
+        )
+        OutlinedTextField(value = filter, onValueChange = { filter = it }, label = { Text("Channel name (optional)") }, singleLine = true)
+        FlowRow2 {
+            OutlinedButton(enabled = !busy, onClick = {
+                busy = true
+                out = "Running..."
+                scope.launch {
+                    out = try { api.diagnoseLive(filter) } catch (e: Exception) { "Failed: " + (e.message ?: e.javaClass.simpleName) }
+                    busy = false
+                }
+            }) { Text("Run test") }
+            if (out.isNotEmpty() && !busy) {
+                OutlinedButton(onClick = {
+                    (ctx.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager).setPrimaryClip(ClipData.newPlainText("diagnostics", out))
+                }) { Text("Copy") }
+            }
+        }
+        if (out.isNotEmpty()) SelectionContainer { Text(out, style = MaterialTheme.typography.bodySmall, fontFamily = FontFamily.Monospace) }
     }
 }
 

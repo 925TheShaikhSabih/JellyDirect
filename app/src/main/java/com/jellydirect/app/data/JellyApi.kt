@@ -372,7 +372,7 @@ class JellyApi(
      * player, so the Jellyfin server never carries the video bytes. The server's own raw "static" stream
      * (no transcoding, ever) is the fallback, and also what is used in [StreamMode.SERVER].
      */
-    suspend fun resolvePlayback(item: Item, mode: StreamMode, startTicks: Long): Playable {
+    suspend fun resolvePlayback(item: Item, mode: StreamMode, startTicks: Long, trace: ((String) -> Unit)? = null): Playable {
         val live = item.isChannel || item.type == "Program"
         val itemId = if (item.type == "Program") (item.channelId ?: item.id) else item.id
         if (!live && mode == StreamMode.DIRECT_URL) {
@@ -405,9 +405,11 @@ class JellyApi(
         val source = info?.mediaSources?.firstOrNull() ?: item.mediaSources.firstOrNull()
             ?: throw IOException(info?.errorCode?.let { "Server refused playback ($it)" } ?: "No playable source for this item")
         val sessionId = info?.playSessionId
+        trace?.invoke("     PlaybackInfo: error=${info?.errorCode} sources=${info?.mediaSources?.size} -> id=${source.id} protocol=${source.protocol} remote=${source.isRemote} container=${source.container} liveStreamId=${source.liveStreamId} path=${maskUrl(source.path)}")
 
         val staticUrl = (if (live) liveRelayUrl(source) else null) ?: staticStreamUrl(itemId, source, sessionId)
-        val direct = source.path?.takeIf { isUsableRemoteUrl(it) }
+        // A path into the server's own live relay needs our api key, so it is never a "direct" link.
+        val direct = source.path?.takeIf { isUsableRemoteUrl(it) && !it.contains("/LiveTv/LiveStreamFiles/") }
 
         val useDirect = mode == StreamMode.DIRECT_URL && direct != null
         return Playable(
@@ -420,6 +422,73 @@ class JellyApi(
             liveStreamId = source.liveStreamId,
             isLive = live,
         )
+    }
+
+    /** Partly masked address for diagnostics: keeps host/shape, hides path segments and query values. */
+    fun maskUrl(u: String?): String {
+        if (u.isNullOrBlank()) return "(none)"
+        return try {
+            val h = u.trim().toHttpUrl()
+            val segs = h.pathSegments
+            val first = segs.firstOrNull().orEmpty().let { if (it.length <= 14 && it.all { c -> c.isLetter() }) it else "..." }
+            val ext = segs.lastOrNull().orEmpty().substringAfterLast('.', "").take(5)
+            "${h.scheme}://${h.host}:${h.port}/$first" + (if (segs.size > 1) "/...(${segs.size} parts)" else "") +
+                (if (ext.isNotEmpty()) " ext=$ext" else "") +
+                (if (h.querySize > 0) " query=${h.queryParameterNames.joinToString(",")}" else "")
+        } catch (_: Exception) {
+            "(unparseable, ${u.length} chars)"
+        }
+    }
+
+    private suspend fun probe(u: String): String = withContext(Dispatchers.IO) {
+        val c = SharedHttp.newBuilder().callTimeout(12, TimeUnit.SECONDS).build()
+        val req = Request.Builder().url(u).header("User-Agent", "VLC/3.0.20 LibVLC/3.0.20").get().build()
+        c.newCall(req).await().use { r ->
+            val buf = ByteArray(4096)
+            val n = try { r.body?.byteStream()?.read(buf) ?: -1 } catch (e: IOException) { -2 }
+            "HTTP ${r.code} type=${r.header("Content-Type")} bytes=$n" + (if (n > 0) " firstByte=0x" + "%02x".format(buf[0]) else "")
+        }
+    }
+
+    /** Walks one live channel through every step the player uses and reports each result. */
+    suspend fun diagnoseLive(filter: String): String {
+        val sb = StringBuilder()
+        fun line(s: String) { sb.appendLine(s) }
+        suspend fun <T> step(name: String, block: suspend () -> T): T? {
+            val t0 = System.currentTimeMillis()
+            return try {
+                block().also { line("OK   $name (${System.currentTimeMillis() - t0} ms)") }
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                line("FAIL $name: ${e.message ?: e.javaClass.simpleName} (${System.currentTimeMillis() - t0} ms)")
+                null
+            }
+        }
+        val info = step("Server info") { publicInfo() }
+        info?.let { line("     Jellyfin ${it.version}") }
+        val chans = step("List channels") { channels(limit = 100).items }
+        if (chans.isNullOrEmpty()) { line("No channels to test."); return sb.toString() }
+        val ch = chans.firstOrNull { filter.isNotBlank() && it.name.contains(filter, true) } ?: chans.first()
+        line("     ${chans.size} channels; testing: ${ch.channelNumber.orEmpty()} ${ch.name}")
+        val item = step("Fetch channel item") { item(ch.id) }
+        item?.mediaSources?.forEachIndexed { i, s ->
+            line("     item source $i: protocol=${s.protocol} remote=${s.isRemote} requiresOpening=${s.requiresOpening} path=${maskUrl(s.path)}")
+        }
+        val p = step("Resolve playback") { resolvePlayback(item ?: ch, StreamMode.DIRECT_URL, 0L, trace = { line(it) }) }
+        if (p == null) return sb.toString()
+        val urls = linkedMapOf<String, String>()
+        urls[if (p.isDirectUrl) "primary (direct link)" else "primary (via server)"] = p.url
+        p.fallbackUrl?.let { urls["fallback"] = it }
+        urls["server static stream"] = staticStreamUrl(p.item.id, p.source, p.playSessionId)
+        liveRelayUrl(p.source)?.let { urls["server relay file"] = it }
+        val seen = HashSet<String>()
+        for ((label, u) in urls) {
+            if (!seen.add(u)) continue
+            step("Probe $label: ${maskUrl(u)}") { probe(u).also { line("     $it") } }
+        }
+        p.liveStreamId?.let { closeLiveStream(it) }
+        return sb.toString()
     }
 
     /** Jellyfin reports its live relay as a loopback address; swap in the address we actually reached it on. */

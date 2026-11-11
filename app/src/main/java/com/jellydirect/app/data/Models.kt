@@ -38,6 +38,7 @@ data class MediaSource(
     @SerialName("RunTimeTicks") val runTimeTicks: Long? = null,
     @SerialName("LiveStreamId") val liveStreamId: String? = null,
     @SerialName("RequiresClosing") val requiresClosing: Boolean = false,
+    @SerialName("RequiresOpening") val requiresOpening: Boolean = false,
     @SerialName("MediaStreams") val streams: List<MediaStream> = emptyList(),
 )
 
