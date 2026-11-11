@@ -5,6 +5,9 @@ on:
     branches: [main, master]
   workflow_dispatch:
 
+permissions:
+  contents: write   # needed to publish the release
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -33,3 +36,13 @@ jobs:
           name: JellyDirect-apks
           path: app/build/outputs/apk/release/*.apk
           if-no-files-found: error
+
+      # Publishes the APKs as plain downloadable files on the repo's Releases page (no zip).
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "build-${{ github.run_number }}" app/build/outputs/apk/release/*.apk \
+            --title "JellyDirect build ${{ github.run_number }}" \
+            --notes "Automated build of ${GITHUB_SHA::7}" \
+            --target "$GITHUB_SHA"
