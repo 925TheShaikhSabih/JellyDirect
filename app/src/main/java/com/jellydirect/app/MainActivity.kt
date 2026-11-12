@@ -137,7 +137,7 @@ private fun BoxScope.GlassBar(dests: List<Dest>, route: String?, haze: HazeState
             .clip(shape)
             .hazeEffect(
                 state = haze,
-                style = HazeStyle(backgroundColor = Bg, blurRadius = 28.dp, noiseFactor = 0.04f),
+                style = HazeStyle(backgroundColor = Bg, tints = emptyList(), blurRadius = 28.dp, noiseFactor = 0.04f),
             )
             .background(Color(0x66201A1E))
             .rim(shape)
