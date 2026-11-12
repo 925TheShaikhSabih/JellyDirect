@@ -638,16 +638,17 @@ class JellyApi(
     // Images
     // ---------------------------------------------------------------------------------------
 
-    fun imageUrl(itemId: String, type: String, tag: String?, maxWidth: Int, quality: Int = 88): String {
+    fun imageUrl(itemId: String, type: String, tag: String?, maxWidth: Int, quality: Int = 80): String {
         val b = url("/Items/$itemId/Images/$type").newBuilder()
         b.addQueryParameter("maxWidth", "$maxWidth")
         b.addQueryParameter("quality", "$quality")
+        b.addQueryParameter("format", "webp")
         tag?.let { b.addQueryParameter("tag", it) }
         return b.build().toString()
     }
 
     /** Portrait poster (2:3). Episodes fall back to their series poster. */
-    fun poster(item: Item, maxWidth: Int = 360): String? {
+    fun poster(item: Item, maxWidth: Int = 320): String? {
         item.imageTags["Primary"]?.let { return imageUrl(item.id, "Primary", it, maxWidth) }
         val sid = item.seriesId
         val st = item.seriesPrimaryTag
@@ -656,7 +657,7 @@ class JellyApi(
     }
 
     /** Landscape art (16:9) for rows such as Continue Watching. */
-    fun landscape(item: Item, maxWidth: Int = 560): String? {
+    fun landscape(item: Item, maxWidth: Int = 480): String? {
         item.imageTags["Thumb"]?.let { return imageUrl(item.id, "Thumb", it, maxWidth) }
         if (item.type == "Episode" || item.type == "Program" || item.type == "Video") {
             item.imageTags["Primary"]?.let { return imageUrl(item.id, "Primary", it, maxWidth) }

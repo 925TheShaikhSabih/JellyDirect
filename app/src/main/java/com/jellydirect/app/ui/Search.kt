@@ -8,9 +8,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -80,7 +77,7 @@ fun SearchScreen(api: JellyApi, onOpen: (Item) -> Unit) {
         Box(Modifier.fillMaxSize()) {
             val r = results
             when {
-                r != null -> LazyColumn {
+                r != null -> LazyColumn(contentPadding = androidx.compose.foundation.layout.PaddingValues(bottom = 120.dp)) {
                     item { ItemRow("Movies", r.movies, api, onLong = { menu.value = it }, onClick = onOpen) }
                     item { ItemRow("Shows", r.shows, api, onLong = { menu.value = it }, onClick = onOpen) }
                     item { ItemRow("Episodes", r.episodes, api, wide = true, onLong = { menu.value = it }, onClick = onOpen) }

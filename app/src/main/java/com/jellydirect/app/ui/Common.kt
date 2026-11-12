@@ -15,6 +15,8 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -33,13 +35,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Star
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Icon
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
@@ -55,6 +50,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.layout.ContentScale
@@ -155,8 +151,8 @@ fun <T : Any> Loader<T>.Show(content: @Composable (T) -> Unit) {
         is Load.Busy -> Box(Modifier.fillMaxSize(), Alignment.Center) { CircularProgressIndicator(color = Accent) }
         is Load.Err -> Box(Modifier.fillMaxSize(), Alignment.Center) {
             Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("Couldn't load", style = MaterialTheme.typography.titleMedium)
-                Text(s.msg, color = Color.Gray, style = MaterialTheme.typography.bodySmall)
+                Text("Couldn't load", style = Type.titleMedium)
+                Text(s.msg, color = Color.Gray, style = Type.bodySmall)
                 TextButton(onClick = reload) { Text("Retry") }
             }
         }
@@ -176,7 +172,11 @@ fun Modifier.focusClick(
 ): Modifier {
     val src = remember { MutableInteractionSource() }
     val focused by src.collectIsFocusedAsState()
-    val s by animateFloatAsState(if (focused) 1.06f else 1f, label = "focusScale")
+    val pressed by src.collectIsPressedAsState()
+    val s by animateFloatAsState(
+        if (pressed) 0.95f else if (focused) 1.06f else 1f,
+        animationSpec = spring(dampingRatio = 0.5f, stiffness = 380f), label = "focusScale",
+    )
     return this
         .scale(s)
         .then(if (focused) Modifier.border(BorderStroke(3.dp, Color.White), shape) else Modifier)
@@ -232,7 +232,7 @@ fun PosterCard(
             } else if ((item.userData?.unplayedCount ?: 0) > 0) {
                 Text(
                     "${item.userData?.unplayedCount}",
-                    style = MaterialTheme.typography.labelSmall,
+                    style = Type.labelSmall,
                     modifier = Modifier
                         .align(Alignment.TopEnd)
                         .padding(6.dp)
@@ -263,7 +263,7 @@ fun PosterCard(
             if (item.type == "Episode") (item.seriesName ?: item.name) else item.name,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
-            style = MaterialTheme.typography.bodyMedium,
+            style = Type.bodyMedium,
             modifier = Modifier.padding(top = 6.dp),
         )
         val sub = when {
@@ -272,7 +272,7 @@ fun PosterCard(
             else -> item.year?.toString().orEmpty()
         }
         if (sub.isNotBlank()) {
-            Text(sub, maxLines = 1, overflow = TextOverflow.Ellipsis, color = Color.Gray, style = MaterialTheme.typography.bodySmall)
+            Text(sub, maxLines = 1, overflow = TextOverflow.Ellipsis, color = Color.Gray, style = Type.bodySmall)
         }
     }
 }
@@ -288,7 +288,7 @@ fun ItemRow(
 ) {
     if (items.isEmpty()) return
     Column(Modifier.padding(vertical = 8.dp)) {
-        Text(title, style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
+        Text(title, style = Type.titleMedium, modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
         LazyRow(contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             items(items, key = { it.id }) { PosterCard(it, api, wide = wide, onLong = onLong, onClick = onClick) }
         }
@@ -353,18 +353,21 @@ fun playItem(ctx: Context, id: String, fromStart: Boolean = false) {
 
 @Composable
 fun SectionTitle(text: String, modifier: Modifier = Modifier) {
-    Text(text, style = MaterialTheme.typography.titleLarge, modifier = modifier.padding(horizontal = 16.dp, vertical = 12.dp))
+    Text(text, style = Type.titleLarge, modifier = modifier.padding(horizontal = 16.dp, vertical = 12.dp))
 }
 
 @Composable
 fun Chip(text: String, selected: Boolean, onClick: () -> Unit) {
     Text(
         text,
-        style = MaterialTheme.typography.labelLarge,
-        color = if (selected) Color.Black else Color.White,
+        style = Type.labelLarge,
+        color = if (selected) Color(0xFF1A0A04) else Ink,
         modifier = Modifier
             .focusClick(RoundedCornerShape(50), onClick = onClick)
-            .background(if (selected) Accent else Surface2)
+            .then(
+                if (selected) Modifier.background(Brush.linearGradient(listOf(Accent, Color(0xFFFF9150))), RoundedCornerShape(50))
+                else Modifier.glassFill(RoundedCornerShape(50)),
+            )
             .padding(horizontal = 16.dp, vertical = 8.dp),
     )
 }

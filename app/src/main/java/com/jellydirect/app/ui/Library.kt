@@ -13,9 +13,6 @@ import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
@@ -56,7 +53,7 @@ fun LibrariesScreen(api: JellyApi, onOpenLibrary: (Item) -> Unit) {
         LazyVerticalGrid(
             columns = GridCells.Adaptive(if (tv) 300.dp else 220.dp),
             modifier = Modifier.fillMaxSize().statusBarsPadding(),
-            contentPadding = PaddingValues(16.dp),
+            contentPadding = PaddingValues(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 120.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
@@ -93,7 +90,7 @@ fun LibraryScreen(api: JellyApi, view: Item, onOpen: (Item) -> Unit, onOpenList:
 
     val header: @Composable () -> Unit = {
         Box(Modifier.statusBarsPadding()) {
-            Text(view.name, style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(vertical = 12.dp))
+            Text(view.name, style = Type.titleLarge, modifier = Modifier.padding(vertical = 12.dp))
         }
     }
     val chips: @Composable () -> Unit = {
@@ -163,7 +160,7 @@ fun ListScreen(api: JellyApi, key: String, onOpen: (Item) -> Unit) {
     }
     PagedGrid(api, spec.query, onOpen, header = {
         Box(Modifier.statusBarsPadding()) {
-            Text(spec.title, style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(vertical = 12.dp))
+            Text(spec.title, style = Type.titleLarge, modifier = Modifier.padding(vertical = 12.dp))
         }
     })
 }
@@ -220,7 +217,7 @@ fun PagedGrid(
         columns = GridCells.Adaptive(if (tv) 170.dp else 128.dp),
         state = state,
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+        contentPadding = PaddingValues(start = 16.dp, top = 8.dp, end = 16.dp, bottom = 120.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {

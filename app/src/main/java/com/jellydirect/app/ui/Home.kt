@@ -15,10 +15,6 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material3.Button
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -72,7 +68,7 @@ fun HomeScreen(api: JellyApi, onOpen: (Item) -> Unit, onOpenLibrary: (Item) -> U
     }
     loader.Show { d ->
         val hero = d.resume.firstOrNull() ?: d.nextUp.firstOrNull() ?: d.latest.firstOrNull()?.items?.firstOrNull()
-        LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 24.dp)) {
+        LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 120.dp)) {
             if (hero != null) item { Hero(hero, api, onPlay = { if (it.isPlayable) playItem(ctx, it.id) else onOpen(it) }, onInfo = onOpen) }
             else item { Box(Modifier.statusBarsPadding().height(8.dp)) }
             item {
@@ -110,10 +106,10 @@ private fun Hero(item: Item, api: JellyApi, onPlay: (Item) -> Unit, onInfo: (Ite
         Column(Modifier.align(Alignment.BottomStart).padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Text(
                 if (item.type == "Episode") (item.seriesName ?: item.name) else item.name,
-                style = MaterialTheme.typography.titleLarge, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                style = Type.titleLarge, maxLines = 1, overflow = TextOverflow.Ellipsis,
             )
             item.overview?.let {
-                Text(it, maxLines = 2, overflow = TextOverflow.Ellipsis, color = Color(0xFFD6CFCF), style = MaterialTheme.typography.bodySmall,
+                Text(it, maxLines = 2, overflow = TextOverflow.Ellipsis, color = Color(0xFFD6CFCF), style = Type.bodySmall,
                     modifier = Modifier.fillMaxWidth(0.8f))
             }
             Row2(onPlay = { onPlay(item) }, onInfo = { onInfo(item) })
@@ -128,6 +124,6 @@ private fun Row2(onPlay: () -> Unit, onInfo: () -> Unit) {
             Icon(Icons.Filled.PlayArrow, contentDescription = null)
             Text("Play")
         }
-        androidx.compose.material3.OutlinedButton(onClick = onInfo) { Text("Details") }
+        OutlinedButton(onClick = onInfo) { Text("Details") }
     }
 }

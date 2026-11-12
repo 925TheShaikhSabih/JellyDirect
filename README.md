@@ -11,7 +11,7 @@ A small Jellyfin client for Android phones, tablets and Android TV that always p
 ## Build the APK (GitHub Actions)
 1. Create a GitHub repo and push this folder to `main`.
 2. Open the **Actions** tab → *Build APK* → wait for it to finish (or press *Run workflow*).
-3. Download the `JellyDirect-apks` artifact. Install `app-universal-release.apk`, or the smaller one for your CPU (`arm64-v8a` for almost every phone and most TV boxes).
+3. Open the newest release and download the APK for your CPU: `arm64-v8a` for almost every phone and TV box, `armeabi-v7a` for older 32-bit devices. The `server` APKs have the server address built in.
 
 Or locally with Android Studio: open this folder and run *Build → Build APK(s)* (release is signed with the debug key so it installs directly).
 

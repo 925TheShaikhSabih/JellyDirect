@@ -6,7 +6,6 @@ import android.content.ClipboardManager
 import android.content.Context
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.text.selection.SelectionContainer
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -23,9 +22,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -46,7 +42,7 @@ private val LANGS = listOf(
 @Composable
 private fun <T> Opt(title: String, current: T, options: List<Pair<T, String>>, onPick: (T) -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text(title, style = MaterialTheme.typography.titleMedium)
+        Text(title, style = Type.titleMedium)
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             options.forEach { (v, label) -> Chip(label, v == current) { onPick(v) } }
         }
@@ -62,12 +58,12 @@ fun SettingsScreen(onAddAccount: (String?) -> Unit) {
     fun up(f: (Settings) -> Settings) = app.store.updateSettings(f)
 
     Column(
-        Modifier.fillMaxSize().statusBarsPadding().verticalScroll(rememberScrollState()).padding(16.dp),
+        Modifier.fillMaxSize().statusBarsPadding().verticalScroll(rememberScrollState()).padding(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 120.dp),
         verticalArrangement = Arrangement.spacedBy(18.dp),
     ) {
-        Text("Settings", style = MaterialTheme.typography.titleLarge)
+        Text("Settings", style = Type.titleLarge)
 
-        Text("Accounts", style = MaterialTheme.typography.titleMedium)
+        Text("Accounts", style = Type.titleMedium)
         FlowRow2 {
             accounts.forEach { a ->
                 Chip("${a.userName} @ ${a.serverName}", a.key == app.store.activeKey) {
@@ -92,7 +88,7 @@ fun SettingsScreen(onAddAccount: (String?) -> Unit) {
         Text(
             "Direct mode plays the link stored in the .strm file straight from its host, so your server only provides the library. " +
                 "If that link can't be opened, the player falls back to the server's raw stream automatically.",
-            color = Color.Gray, style = MaterialTheme.typography.bodySmall,
+            color = Color.Gray, style = Type.bodySmall,
         )
         Opt("Hardware decoding", s.hw, listOf(HwMode.AUTO to "Auto (software fallback)", HwMode.OFF to "Software only")) { v -> up { it.copy(hw = v) } }
         Opt("Buffer", s.bufferMs, listOf(1000 to "Fast start", 2000 to "Balanced", 6000 to "Smooth")) { v -> up { it.copy(bufferMs = v) } }
@@ -114,10 +110,10 @@ private fun LiveDiag(api: JellyApi) {
     var out by remember { mutableStateOf("") }
     var busy by remember { mutableStateOf(false) }
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text("Live TV diagnostics", style = MaterialTheme.typography.titleMedium)
+        Text("Live TV diagnostics", style = Type.titleMedium)
         Text(
             "Tests one channel step by step and shows what the server returns. Addresses are partly masked; check it before sharing.",
-            color = Color.Gray, style = MaterialTheme.typography.bodySmall,
+            color = Color.Gray, style = Type.bodySmall,
         )
         OutlinedTextField(value = filter, onValueChange = { filter = it }, label = { Text("Channel name (optional)") }, singleLine = true)
         FlowRow2 {
@@ -135,7 +131,7 @@ private fun LiveDiag(api: JellyApi) {
                 }) { Text("Copy") }
             }
         }
-        if (out.isNotEmpty()) SelectionContainer { Text(out, style = MaterialTheme.typography.bodySmall, fontFamily = FontFamily.Monospace) }
+        if (out.isNotEmpty()) SelectionContainer { Text(out, style = Type.bodySmall, fontFamily = FontFamily.Monospace) }
     }
 }
 

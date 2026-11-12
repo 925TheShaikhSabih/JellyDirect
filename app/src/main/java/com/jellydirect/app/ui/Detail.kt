@@ -25,13 +25,6 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Replay
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.StarBorder
-import androidx.compose.material3.Button
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -105,7 +98,7 @@ fun DetailScreen(api: JellyApi, id: String, onOpen: (Item) -> Unit) {
         LazyVerticalGrid(
             columns = GridCells.Adaptive(128.dp),
             modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(bottom = 24.dp),
+            contentPadding = PaddingValues(bottom = 120.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
@@ -120,9 +113,9 @@ fun DetailScreen(api: JellyApi, id: String, onOpen: (Item) -> Unit) {
                     Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color(0x66000000), Color.Transparent, Bg))))
                     Column(Modifier.align(Alignment.BottomStart).padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         if (item.type == "Episode" && item.seriesName != null) {
-                            Text(item.seriesName, color = Accent, style = MaterialTheme.typography.labelLarge)
+                            Text(item.seriesName, color = Accent, style = Type.labelLarge)
                         }
-                        Text(item.name, style = MaterialTheme.typography.titleLarge)
+                        Text(item.name, style = Type.titleLarge)
                         val meta = listOfNotNull(
                             item.episodeCode,
                             item.year?.toString(),
@@ -130,9 +123,9 @@ fun DetailScreen(api: JellyApi, id: String, onOpen: (Item) -> Unit) {
                             item.runtimeMs.takeIf { it > 0 }?.let { formatDuration(it) },
                             item.rating?.let { "★ %.1f".format(it) },
                         ).joinToString("  ·  ")
-                        if (meta.isNotBlank()) Text(meta, color = Color(0xFFB0A8AE), style = MaterialTheme.typography.bodySmall)
+                        if (meta.isNotBlank()) Text(meta, color = Color(0xFFB0A8AE), style = Type.bodySmall)
                         if (item.genres.isNotEmpty()) {
-                            Text(item.genres.take(4).joinToString(", "), color = Color(0xFFB0A8AE), style = MaterialTheme.typography.bodySmall)
+                            Text(item.genres.take(4).joinToString(", "), color = Color(0xFFB0A8AE), style = Type.bodySmall)
                         }
                     }
                 }
@@ -177,7 +170,7 @@ fun DetailScreen(api: JellyApi, id: String, onOpen: (Item) -> Unit) {
                             )
                         }
                     }
-                    item.overview?.let { Text(it, color = Color(0xFFD6CFCF), style = MaterialTheme.typography.bodyMedium) }
+                    item.overview?.let { Text(it, color = Color(0xFFD6CFCF), style = Type.bodyMedium) }
                 }
             }
 
@@ -199,7 +192,7 @@ fun DetailScreen(api: JellyApi, id: String, onOpen: (Item) -> Unit) {
             } else if (episodes != null) {
                 item(span = { GridItemSpan(maxLineSpan) }) {
                     Box(Modifier.fillMaxWidth().padding(24.dp), Alignment.Center) {
-                        androidx.compose.material3.CircularProgressIndicator(color = Accent)
+                        CircularProgressIndicator(color = Accent)
                     }
                 }
             }
@@ -243,11 +236,11 @@ private fun EpisodeRow(ep: Item, api: JellyApi, onLong: (Item) -> Unit, onClick:
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(
                 listOfNotNull(ep.index?.toString(), ep.name).joinToString(". "),
-                maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.titleMedium,
+                maxLines = 1, overflow = TextOverflow.Ellipsis, style = Type.titleMedium,
             )
             val sub = listOfNotNull(ep.runtimeMs.takeIf { it > 0 }?.let { formatDuration(it) }, if (ep.userData?.played == true) "Watched" else null)
-            if (sub.isNotEmpty()) Text(sub.joinToString(" · "), color = Color.Gray, style = MaterialTheme.typography.bodySmall)
-            ep.overview?.let { Text(it, maxLines = 3, overflow = TextOverflow.Ellipsis, color = Color(0xFFB0A8AE), style = MaterialTheme.typography.bodySmall) }
+            if (sub.isNotEmpty()) Text(sub.joinToString(" · "), color = Color.Gray, style = Type.bodySmall)
+            ep.overview?.let { Text(it, maxLines = 3, overflow = TextOverflow.Ellipsis, color = Color(0xFFB0A8AE), style = Type.bodySmall) }
         }
     }
 }

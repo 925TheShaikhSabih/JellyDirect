@@ -17,9 +17,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -56,7 +53,7 @@ fun LiveTvScreen(api: JellyApi) {
         api.channels(limit = 500, favoritesOnly = tab == LiveTab.FAVORITES).items
     }
     Column(Modifier.fillMaxSize().statusBarsPadding()) {
-        Text("Live TV", style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(16.dp))
+        Text("Live TV", style = Type.titleLarge, modifier = Modifier.padding(16.dp))
         Row(Modifier.padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             LiveTab.entries.forEach { t -> Chip(t.label, tab == t) { tab = t } }
         }
@@ -66,7 +63,7 @@ fun LiveTvScreen(api: JellyApi) {
             } else if (tab == LiveTab.GUIDE) {
                 Guide(api, channels.take(100))
             } else {
-                LazyColumn(Modifier.padding(top = 8.dp)) {
+                LazyColumn(Modifier.padding(top = 8.dp), contentPadding = androidx.compose.foundation.layout.PaddingValues(bottom = 120.dp)) {
                     items(channels, key = { it.id }) { ch -> ChannelRow(ch, api) { playItem(ctx, ch.id) } }
                 }
             }
@@ -93,10 +90,10 @@ private fun ChannelRow(ch: Item, api: JellyApi, onClick: () -> Unit) {
         Column(Modifier.weight(1f)) {
             Text(
                 listOfNotNull(ch.channelNumber, ch.name).joinToString("  "),
-                maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.titleMedium,
+                maxLines = 1, overflow = TextOverflow.Ellipsis, style = Type.titleMedium,
             )
             if (now != null) {
-                Text(now.name, maxLines = 1, overflow = TextOverflow.Ellipsis, color = Color(0xFFB0A8AE), style = MaterialTheme.typography.bodySmall)
+                Text(now.name, maxLines = 1, overflow = TextOverflow.Ellipsis, color = Color(0xFFB0A8AE), style = Type.bodySmall)
                 val s = now.parsedStart()
                 val e = now.parsedEnd()
                 if (s != null && e != null && e.isAfter(s)) {
@@ -142,18 +139,18 @@ private fun Guide(api: JellyApi, channels: List<Item>) {
                     for (m in 0 until totalMin step 30) {
                         Text(
                             timeFmt.format(windowStart.plusSeconds(m * 60L)),
-                            color = Color.Gray, style = MaterialTheme.typography.labelSmall,
+                            color = Color.Gray, style = Type.labelSmall,
                             modifier = Modifier.width(DP_PER_MIN * 30),
                         )
                     }
                 }
             }
-            LazyColumn(Modifier.fillMaxSize()) {
+            LazyColumn(Modifier.fillMaxSize(), contentPadding = androidx.compose.foundation.layout.PaddingValues(bottom = 120.dp)) {
                 items(channels, key = { it.id }) { ch ->
                     Row(Modifier.fillMaxWidth().height(52.dp).padding(vertical = 2.dp)) {
                         Text(
                             listOfNotNull(ch.channelNumber, ch.name).joinToString(" "),
-                            maxLines = 2, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.labelLarge,
+                            maxLines = 2, overflow = TextOverflow.Ellipsis, style = Type.labelLarge,
                             modifier = Modifier.width(110.dp).padding(horizontal = 8.dp).align(Alignment.CenterVertically),
                         )
                         Row(Modifier.horizontalScroll(scroll)) {
@@ -170,7 +167,7 @@ private fun Guide(api: JellyApi, channels: List<Item>) {
                                 Box(Modifier.width(DP_PER_MIN * totalMin).fillMaxSize().padding(horizontal = 1.dp)
                                     .focusClick(RoundedCornerShape(6.dp)) { playItem(ctx, ch.id) }
                                     .background(Surface1).padding(8.dp)) {
-                                    Text("No guide data", color = Color.Gray, style = MaterialTheme.typography.bodySmall)
+                                    Text("No guide data", color = Color.Gray, style = Type.bodySmall)
                                 }
                             }
                             for ((p, s, e) in progs) {
@@ -183,7 +180,7 @@ private fun Guide(api: JellyApi, channels: List<Item>) {
                                         .focusClick(RoundedCornerShape(6.dp)) { playItem(ctx, ch.id) }
                                         .background(Surface2).padding(8.dp),
                                 ) {
-                                    Text(p.name, maxLines = 2, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.bodySmall)
+                                    Text(p.name, maxLines = 2, overflow = TextOverflow.Ellipsis, style = Type.bodySmall)
                                 }
                                 cursor = e
                             }

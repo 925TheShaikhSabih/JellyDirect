@@ -17,14 +17,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -152,7 +144,7 @@ fun AuthScreen(onDone: () -> Unit, onCancel: (() -> Unit)? = null, presetUrl: St
             verticalArrangement = Arrangement.spacedBy(12.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Text("JellyDirect", style = MaterialTheme.typography.titleLarge.copy(brush = BrandBrush))
+            Text("JellyDirect", style = Type.titleLarge.copy(brush = BrandBrush))
             if (info == null && fixed != null) {
                 Button(onClick = { connect() }, enabled = !busy) { Text(if (busy) "Connecting..." else "Retry") }
             } else if (info == null) {
@@ -165,7 +157,7 @@ fun AuthScreen(onDone: () -> Unit, onCancel: (() -> Unit)? = null, presetUrl: St
                 )
                 Button(onClick = { connect() }, enabled = !busy && url.isNotBlank(), modifier = Modifier.fillMaxWidth()) { Text("Connect") }
             } else {
-                Text(info!!.serverName.ifBlank { url }, style = MaterialTheme.typography.titleMedium)
+                Text(info!!.serverName.ifBlank { url }, style = Type.titleMedium)
                 if (users.isNotEmpty()) {
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         users.take(4).forEach { u -> Chip(u.name, user == u.name) { user = u.name } }
@@ -188,7 +180,7 @@ fun AuthScreen(onDone: () -> Unit, onCancel: (() -> Unit)? = null, presetUrl: St
                 if (fixed == null) TextButton(onClick = { info = null; api = null; qcCode = null; error = null }) { Text("Change server") }
             }
             if (busy) CircularProgressIndicator(color = Accent)
-            error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+            error?.let { Text(it, color = Danger) }
             if (onCancel != null) TextButton(onClick = onCancel) { Text("Cancel") }
         }
     }
@@ -201,7 +193,7 @@ fun AuthScreen(onDone: () -> Unit, onCancel: (() -> Unit)? = null, presetUrl: St
                 Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
                     Text("On a device that is already signed in, open Jellyfin → Quick Connect and enter:")
                     Spacer(Modifier.height(12.dp))
-                    Text(code, style = MaterialTheme.typography.titleLarge, color = Accent)
+                    Text(code, style = Type.titleLarge, color = Accent)
                 }
             },
             confirmButton = { TextButton(onClick = { qcCode = null }) { Text("Cancel") } },

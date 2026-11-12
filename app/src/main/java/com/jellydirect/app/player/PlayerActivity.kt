@@ -37,16 +37,6 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material.icons.filled.Subtitles
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Slider
-import androidx.compose.material3.SliderDefaults
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -80,6 +70,16 @@ import com.jellydirect.app.data.episodeCode
 import com.jellydirect.app.data.formatClock
 import com.jellydirect.app.data.progress
 import com.jellydirect.app.ui.Accent
+import com.jellydirect.app.ui.AlertDialog
+import com.jellydirect.app.ui.Button
+import com.jellydirect.app.ui.CircularProgressIndicator
+import com.jellydirect.app.ui.Icon
+import com.jellydirect.app.ui.IconButton
+import com.jellydirect.app.ui.Slider
+import com.jellydirect.app.ui.SliderDefaults
+import com.jellydirect.app.ui.Text
+import com.jellydirect.app.ui.TextButton
+import com.jellydirect.app.ui.Type
 import com.jellydirect.app.ui.JellyTheme
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
@@ -586,7 +586,7 @@ class PlayerActivity : ComponentActivity() {
             note?.let {
                 Text(it, Modifier.align(Alignment.TopCenter).padding(top = 96.dp)
                     .background(Color(0xCC000000), RoundedCornerShape(8.dp)).padding(12.dp, 6.dp),
-                    style = MaterialTheme.typography.bodySmall)
+                    style = Type.bodySmall)
             }
 
             if (error != null && !inPip) {
@@ -608,7 +608,7 @@ class PlayerActivity : ComponentActivity() {
                     Modifier.align(Alignment.BottomEnd).padding(24.dp).background(Color(0xDD171419), RoundedCornerShape(12.dp)).padding(14.dp),
                     verticalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
-                    Text("Up next", color = Accent, style = MaterialTheme.typography.labelLarge)
+                    Text("Up next", color = Accent, style = Type.labelLarge)
                     Text(listOfNotNull(n.episodeCode, n.name).joinToString(" · "), maxLines = 1, overflow = TextOverflow.Ellipsis)
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Button(onClick = { play(n.id, true) }) { Text("Play now") }
@@ -630,8 +630,8 @@ class PlayerActivity : ComponentActivity() {
             Row(Modifier.align(Alignment.TopStart).fillMaxWidth().padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
                 IconButton(onClick = { finish() }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = Color.White) }
                 Column(Modifier.weight(1f)) {
-                    Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.titleMedium)
-                    if (subtitle.isNotBlank()) Text(subtitle, maxLines = 1, overflow = TextOverflow.Ellipsis, color = Color(0xFFB0A8AE), style = MaterialTheme.typography.bodySmall)
+                    Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis, style = Type.titleMedium)
+                    if (subtitle.isNotBlank()) Text(subtitle, maxLines = 1, overflow = TextOverflow.Ellipsis, color = Color(0xFFB0A8AE), style = Type.bodySmall)
                 }
                 if (isLive) Text("● LIVE", color = Color(0xFFFF6B6B), modifier = Modifier.padding(end = 12.dp))
             }
@@ -643,7 +643,7 @@ class PlayerActivity : ComponentActivity() {
                     IconButton(onClick = { seekBy(-s.skipBackSec * 1000L) }) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(Icons.Filled.FastRewind, "Back ${s.skipBackSec}s", tint = Color.White)
-                            Text("${s.skipBackSec}", style = MaterialTheme.typography.labelSmall)
+                            Text("${s.skipBackSec}", style = Type.labelSmall)
                         }
                     }
                 }
@@ -655,7 +655,7 @@ class PlayerActivity : ComponentActivity() {
                 } else {
                     IconButton(onClick = { seekBy(s.skipFwdSec * 1000L) }) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text("${s.skipFwdSec}", style = MaterialTheme.typography.labelSmall)
+                            Text("${s.skipFwdSec}", style = Type.labelSmall)
                             Icon(Icons.Filled.FastForward, "Forward ${s.skipFwdSec}s", tint = Color.White)
                         }
                     }
@@ -672,9 +672,9 @@ class PlayerActivity : ComponentActivity() {
                         colors = SliderDefaults.colors(thumbColor = Accent, activeTrackColor = Accent),
                     )
                     Row(Modifier.fillMaxWidth()) {
-                        Text(formatClock((drag ?: posMs.toFloat()).toLong()), style = MaterialTheme.typography.bodySmall)
+                        Text(formatClock((drag ?: posMs.toFloat()).toLong()), style = Type.bodySmall)
                         Box(Modifier.weight(1f))
-                        Text(formatClock(lenMs), style = MaterialTheme.typography.bodySmall)
+                        Text(formatClock(lenMs), style = Type.bodySmall)
                     }
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -700,27 +700,27 @@ class PlayerActivity : ComponentActivity() {
             title = { Text("Audio & subtitles") },
             text = {
                 Column(Modifier.verticalScroll(rememberScrollState())) {
-                    Text("Audio", color = Accent, style = MaterialTheme.typography.labelLarge)
+                    Text("Audio", color = Accent, style = Type.labelLarge)
                     if (audio.isEmpty()) Text("No tracks", color = Color.Gray)
                     audio.forEach { t ->
                         TextButton(onClick = { mp.setAudioTrack(t.id); tick++ }) {
                             Text((if (t.id == curA) "● " else "○ ") + t.name.orEmpty())
                         }
                     }
-                    Text("Subtitles", color = Accent, style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(top = 8.dp))
+                    Text("Subtitles", color = Accent, style = Type.labelLarge, modifier = Modifier.padding(top = 8.dp))
                     subs.forEach { t ->
                         TextButton(onClick = { mp.setSpuTrack(t.id); tick++ }) {
                             Text((if (t.id == curS) "● " else "○ ") + t.name.orEmpty())
                         }
                     }
-                    Text("Sync (±100 ms)", color = Accent, style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(top = 8.dp))
+                    Text("Sync (±100 ms)", color = Accent, style = Type.labelLarge, modifier = Modifier.padding(top = 8.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Text("Audio ${mp.getAudioDelay() / 1000} ms", Modifier.weight(1f), style = MaterialTheme.typography.bodySmall)
+                        Text("Audio ${mp.getAudioDelay() / 1000} ms", Modifier.weight(1f), style = Type.bodySmall)
                         TextButton(onClick = { mp.setAudioDelay(mp.getAudioDelay() - 100_000L); tick++ }) { Text("−") }
                         TextButton(onClick = { mp.setAudioDelay(mp.getAudioDelay() + 100_000L); tick++ }) { Text("+") }
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Text("Subs ${mp.getSpuDelay() / 1000} ms", Modifier.weight(1f), style = MaterialTheme.typography.bodySmall)
+                        Text("Subs ${mp.getSpuDelay() / 1000} ms", Modifier.weight(1f), style = Type.bodySmall)
                         TextButton(onClick = { mp.setSpuDelay(mp.getSpuDelay() - 100_000L); tick++ }) { Text("−") }
                         TextButton(onClick = { mp.setSpuDelay(mp.getSpuDelay() + 100_000L); tick++ }) { Text("+") }
                     }

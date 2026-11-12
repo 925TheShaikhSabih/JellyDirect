@@ -39,8 +39,8 @@ android {
         abi {
             isEnable = true
             reset()
-            include("arm64-v8a", "armeabi-v7a", "x86_64")
-            isUniversalApk = true
+            include("arm64-v8a", "armeabi-v7a")
+            isUniversalApk = false
         }
     }
 
@@ -88,7 +88,7 @@ dependencies {
     implementation(platform("androidx.compose:compose-bom:2026.06.00"))
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.foundation:foundation")
-    implementation("androidx.compose.material3:material3")
+    implementation("dev.chrisbanes.haze:haze:1.7.0")
     implementation("androidx.compose.material:material-icons-extended")
 
     implementation("androidx.core:core-ktx:1.16.0")
