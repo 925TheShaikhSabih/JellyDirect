@@ -78,6 +78,15 @@ data class Item(
     @SerialName("UserData") val userData: UserData? = null,
     @SerialName("MediaSources") val mediaSources: List<MediaSource> = emptyList(),
     @SerialName("Path") val path: String? = null,
+    @SerialName("People") val people: List<Person> = emptyList(),
+)
+
+@Serializable
+data class Person(
+    @SerialName("Id") val id: String = "",
+    @SerialName("Name") val name: String = "",
+    @SerialName("Type") val type: String = "",
+    @SerialName("PrimaryImageTag") val tag: String? = null,
 )
 
 @Serializable

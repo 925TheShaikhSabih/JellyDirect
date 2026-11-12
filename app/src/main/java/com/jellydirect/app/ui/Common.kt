@@ -1,5 +1,15 @@
 package com.jellydirect.app.ui
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.layout.size
+import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.delay
+
 import android.content.Context
 import android.content.Intent
 import androidx.compose.animation.core.animateFloatAsState
@@ -69,12 +79,12 @@ import kotlinx.coroutines.launch
 
 val LocalIsTv = staticCompositionLocalOf { false }
 
-val Accent = Color(0xFFFF6A3D)
+val Accent = Color(0xFFE5382D)
 val Gold = Color(0xFFFFC15E)
-val BrandBrush = androidx.compose.ui.graphics.Brush.linearGradient(listOf(Accent, Gold))
-val Surface1 = Color(0xFF171419)
-val Surface2 = Color(0xFF231F26)
-val Bg = Color(0xFF0D0B0E)
+val BrandBrush = androidx.compose.ui.graphics.Brush.linearGradient(listOf(Accent, AccentHi))
+val Surface1 = Color(0xFF151517)
+val Surface2 = Color(0xFF1E1E21)
+val Bg = Color(0xFF0B0B0D)
 
 // ------------------------------------------------------------------------------------------------
 // Loading helper with a tiny in-memory cache so going "back" shows the previous screen instantly.
@@ -194,6 +204,7 @@ fun PosterCard(
     api: JellyApi,
     modifier: Modifier = Modifier,
     wide: Boolean = false,
+    fill: Boolean = false,
     onLong: ((Item) -> Unit)? = null,
     onClick: (Item) -> Unit,
 ) {
@@ -201,12 +212,12 @@ fun PosterCard(
     val w = if (wide) (if (tv) 300.dp else 220.dp) else (if (tv) 170.dp else 128.dp)
     val ratio = if (wide || item.isChannel) 16f / 9f else 2f / 3f
     val url = if (wide) api.landscape(item) else api.poster(item) ?: api.landscape(item)
-    Column(modifier.width(w)) {
+    Column(if (fill) modifier.fillMaxWidth() else modifier.width(w)) {
         Box(
             Modifier
                 .fillMaxWidth()
                 .aspectRatio(ratio)
-                .focusClick(onLong = onLong?.let { f -> { f(item) } }) { onClick(item) }
+                .focusClick(RoundedCornerShape(14.dp), onLong = onLong?.let { f -> { f(item) } }) { onClick(item) }
                 .background(Surface1),
         ) {
             AsyncImage(
@@ -263,8 +274,8 @@ fun PosterCard(
             if (item.type == "Episode") (item.seriesName ?: item.name) else item.name,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
-            style = Type.bodyMedium,
-            modifier = Modifier.padding(top = 6.dp),
+            style = Type.bodySmall,
+            modifier = Modifier.padding(top = 7.dp),
         )
         val sub = when {
             item.type == "Episode" -> listOfNotNull(item.episodeCode, item.name).joinToString(" · ")
@@ -272,7 +283,7 @@ fun PosterCard(
             else -> item.year?.toString().orEmpty()
         }
         if (sub.isNotBlank()) {
-            Text(sub, maxLines = 1, overflow = TextOverflow.Ellipsis, color = Color.Gray, style = Type.bodySmall)
+            Text(sub, maxLines = 1, overflow = TextOverflow.Ellipsis, color = InkDim, style = Type.labelSmall)
         }
     }
 }
@@ -284,13 +295,17 @@ fun ItemRow(
     api: JellyApi,
     wide: Boolean = false,
     onLong: ((Item) -> Unit)? = null,
+    index: Int = -1,
     onClick: (Item) -> Unit,
 ) {
     if (items.isEmpty()) return
-    Column(Modifier.padding(vertical = 8.dp)) {
-        Text(title, style = Type.titleMedium, modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
+    Column(Modifier.then(if (index >= 0) Modifier.enter(index) else Modifier).padding(vertical = 8.dp)) {
+        Row(Modifier.padding(horizontal = 16.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text(title, style = Type.titleMedium)
+            Icon(Icons.Filled.ChevronRight, null, Modifier.size(20.dp), tint = InkDim)
+        }
         LazyRow(contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            items(items, key = { it.id }) { PosterCard(it, api, wide = wide, onLong = onLong, onClick = onClick) }
+            items(items, key = { it.id }) { PosterCard(it, api, modifier = Modifier.animateItem(), wide = wide, onLong = onLong, onClick = onClick) }
         }
     }
 }
@@ -358,16 +373,55 @@ fun SectionTitle(text: String, modifier: Modifier = Modifier) {
 
 @Composable
 fun Chip(text: String, selected: Boolean, onClick: () -> Unit) {
+    val shape = RoundedCornerShape(50)
+    val fill by animateColorAsState(if (selected) Accent else Color(0xFF1C1C20), tween(200), label = "chip")
     Text(
         text,
         style = Type.labelLarge,
-        color = if (selected) Color(0xFF1A0A04) else Ink,
+        color = if (selected) Color.White else Ink,
         modifier = Modifier
-            .focusClick(RoundedCornerShape(50), onClick = onClick)
-            .then(
-                if (selected) Modifier.background(Brush.linearGradient(listOf(Accent, Color(0xFFFF9150))), RoundedCornerShape(50))
-                else Modifier.glassFill(RoundedCornerShape(50)),
-            )
+            .focusClick(shape, onClick = onClick)
+            .background(fill, shape)
+            .then(if (selected) Modifier else Modifier.rim(shape))
             .padding(horizontal = 16.dp, vertical = 8.dp),
     )
+}
+
+/** Fades and lifts a block in once, staggered by [index]. */
+@Composable
+fun Modifier.enter(index: Int): Modifier {
+    val a = remember { Animatable(0f) }
+    LaunchedEffect(Unit) {
+        delay(index * 50L)
+        a.animateTo(1f, tween(420))
+    }
+    return graphicsLayer { alpha = a.value; translationY = (1f - a.value) * 40f }
+}
+
+fun userImage(baseUrl: String, userId: String) = "${baseUrl.trimEnd('/')}/Users/$userId/Images/Primary?maxWidth=300&quality=80"
+
+/** Round profile picture; shows the initial until (or unless) the server image loads. */
+@Composable
+fun Avatar(url: String?, name: String, modifier: Modifier = Modifier, ring: Boolean = false, letterSp: Int = 22) {
+    Box(
+        modifier.clip(CircleShape).background(BrandBrush).then(if (ring) Modifier.border(2.dp, Color.White, CircleShape) else Modifier),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(name.take(1).uppercase(), style = Type.titleLarge.copy(fontSize = letterSp.sp), color = Color.White)
+        if (url != null) AsyncImage(url, name, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+    }
+}
+
+/** White pill with a red play icon, like the concept's main action. */
+@Composable
+fun PlayPill(label: String, onClick: () -> Unit) {
+    val shape = RoundedCornerShape(50)
+    Row(
+        Modifier.focusClick(shape, onClick = onClick).background(Color.White, shape).padding(horizontal = 22.dp, vertical = 11.dp),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(Icons.Filled.PlayArrow, null, tint = Accent)
+        Text(label, style = Type.labelLarge, color = Accent)
+    }
 }

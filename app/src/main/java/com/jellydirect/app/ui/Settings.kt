@@ -1,5 +1,13 @@
 package com.jellydirect.app.ui
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.ui.Alignment
+
 import android.content.ClipData
 import com.jellydirect.app.BuildConfig
 import android.content.ClipboardManager
@@ -41,7 +49,7 @@ private val LANGS = listOf(
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun <T> Opt(title: String, current: T, options: List<Pair<T, String>>, onPick: (T) -> Unit) {
-    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+    Column(Modifier.fillMaxWidth().background(Surface1, RoundedCornerShape(18.dp)).padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(title, style = Type.titleMedium)
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             options.forEach { (v, label) -> Chip(label, v == current) { onPick(v) } }
@@ -61,13 +69,17 @@ fun SettingsScreen(onAddAccount: (String?) -> Unit) {
         Modifier.fillMaxSize().statusBarsPadding().verticalScroll(rememberScrollState()).padding(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 120.dp),
         verticalArrangement = Arrangement.spacedBy(18.dp),
     ) {
-        Text("Settings", style = Type.titleLarge)
+        Text("Profiles & More", style = Type.titleLarge)
 
-        Text("Accounts", style = Type.titleMedium)
-        FlowRow2 {
+        Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
             accounts.forEach { a ->
-                Chip("${a.userName} @ ${a.serverName}", a.key == app.store.activeKey) {
-                    if (a.key != app.store.activeKey) { MemCache.map.clear(); app.switchTo(a) }
+                val active = a.key == app.store.activeKey
+                Column(
+                    Modifier.focusClick(RoundedCornerShape(16.dp)) { if (!active) { MemCache.map.clear(); app.switchTo(a) } }.padding(4.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    Avatar(userImage(a.serverUrl, a.userId), a.userName, Modifier.size(64.dp), ring = active)
+                    Text(a.userName, style = Type.labelSmall, color = if (active) Accent else InkDim, maxLines = 1, modifier = Modifier.padding(top = 6.dp))
                 }
             }
         }

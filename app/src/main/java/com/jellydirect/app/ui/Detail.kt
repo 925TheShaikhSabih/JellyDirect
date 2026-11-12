@@ -1,5 +1,10 @@
 package com.jellydirect.app.ui
 
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.layout.size
+import androidx.compose.ui.draw.clip
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -132,10 +137,10 @@ fun DetailScreen(api: JellyApi, id: String, onOpen: (Item) -> Unit) {
             }
             item(span = { GridItemSpan(maxLineSpan) }) {
                 Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         if (item.isPlayable || item.type == "Series") {
                             val resumeMs = item.positionMs
-                            Button(onClick = {
+                            PlayPill(if (resumeMs > 0 && item.type != "Series") "Resume ${formatDuration(resumeMs)}" else "Play") {
                                 if (item.type == "Series") {
                                     scope.launch {
                                         val target = runCatching { api.nextUp(1, id).firstOrNull() }.getOrNull()
@@ -143,34 +148,30 @@ fun DetailScreen(api: JellyApi, id: String, onOpen: (Item) -> Unit) {
                                         target?.let { playItem(ctx, it.id) }
                                     }
                                 } else playItem(ctx, item.id)
-                            }) {
-                                Icon(Icons.Filled.PlayArrow, contentDescription = null)
-                                Text(if (resumeMs > 0 && item.type != "Series") "Resume ${formatDuration(resumeMs)}" else "Play")
-                            }
-                            if (resumeMs > 0 && item.isPlayable) {
-                                OutlinedButton(onClick = { playItem(ctx, item.id, fromStart = true) }) {
-                                    Icon(Icons.Filled.Replay, contentDescription = null)
-                                    Text("Start over")
-                                }
                             }
                         }
-                        OutlinedButton(onClick = {
-                            scope.launch { runCatching { api.setPlayed(item.id, !played) }; loader.reload() }
-                        }) {
-                            Icon(Icons.Filled.Check, contentDescription = null, tint = if (played) Accent else Color.White)
-                            Text(if (played) "Watched" else "Mark watched")
-                        }
-                        IconButton(onClick = {
+                        Box(Modifier.weight(1f))
+                        if (item.positionMs > 0 && item.isPlayable) DetailAction(Icons.Filled.Replay, "Restart") { playItem(ctx, item.id, fromStart = true) }
+                        DetailAction(if (fav) Icons.Filled.Star else Icons.Outlined.StarBorder, "My List", if (fav) Gold else Color.White) {
                             scope.launch { runCatching { api.setFavorite(item.id, !fav) }; loader.reload() }
-                        }) {
-                            Icon(
-                                if (fav) Icons.Filled.Star else Icons.Outlined.StarBorder,
-                                contentDescription = "Favorite",
-                                tint = if (fav) Color(0xFFFFC15E) else Color.White,
-                            )
+                        }
+                        DetailAction(Icons.Filled.Check, "Watched", if (played) Accent else Color.White) {
+                            scope.launch { runCatching { api.setPlayed(item.id, !played) }; loader.reload() }
                         }
                     }
                     item.overview?.let { Text(it, color = Color(0xFFD6CFCF), style = Type.bodyMedium) }
+                    val cast = item.people.filter { it.type == "Actor" }.take(14)
+                    if (cast.isNotEmpty()) {
+                        Text("Cast", style = Type.titleMedium, modifier = Modifier.padding(top = 4.dp))
+                        Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                            cast.forEach { p ->
+                                Column(Modifier.width(72.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Avatar(p.tag?.let { api.imageUrl(p.id, "Primary", it, 160) }, p.name, Modifier.size(64.dp), letterSp = 22)
+                                    Text(p.name, style = Type.labelSmall, color = InkDim, maxLines = 2, overflow = TextOverflow.Ellipsis, textAlign = androidx.compose.ui.text.style.TextAlign.Center, modifier = Modifier.padding(top = 4.dp))
+                                }
+                            }
+                        }
+                    }
                 }
             }
 
@@ -214,12 +215,11 @@ private fun EpisodeRow(ep: Item, api: JellyApi, onLong: (Item) -> Unit, onClick:
         Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp)
-            .focusClick(RoundedCornerShape(10.dp), onLong = { onLong(ep) }, onClick = onClick)
-            .background(Surface1)
-            .padding(8.dp),
+            .focusClick(RoundedCornerShape(12.dp), onLong = { onLong(ep) }, onClick = onClick)
+            .padding(vertical = 6.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Box(Modifier.width(150.dp).aspectRatio(16f / 9f).background(Surface2)) {
+        Box(Modifier.width(140.dp).aspectRatio(16f / 9f).clip(RoundedCornerShape(12.dp)).background(Surface2)) {
             AsyncImage(
                 model = api.landscape(ep, 420), contentDescription = null,
                 contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize(),
@@ -242,5 +242,16 @@ private fun EpisodeRow(ep: Item, api: JellyApi, onLong: (Item) -> Unit, onClick:
             if (sub.isNotEmpty()) Text(sub.joinToString(" · "), color = Color.Gray, style = Type.bodySmall)
             ep.overview?.let { Text(it, maxLines = 3, overflow = TextOverflow.Ellipsis, color = Color(0xFFB0A8AE), style = Type.bodySmall) }
         }
+    }
+}
+
+@Composable
+private fun DetailAction(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, tint: Color = Color.White, onClick: () -> Unit) {
+    Column(
+        Modifier.focusClick(RoundedCornerShape(12.dp), onClick = onClick).padding(horizontal = 10.dp, vertical = 6.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Icon(icon, label, tint = tint)
+        Text(label, style = Type.labelSmall, color = InkDim)
     }
 }

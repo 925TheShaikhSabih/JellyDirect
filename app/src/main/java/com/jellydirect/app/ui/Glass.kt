@@ -74,8 +74,8 @@ import androidx.compose.ui.window.Dialog
 val Ink = Color(0xFFF4EFEA)
 val InkDim = Color(0xFFB0A8AE)
 val Danger = Color(0xFFFF6B6B)
-private val OnAccent = Color(0xFF1A0A04)
-private val AccentHi = Color(0xFFFF9150)
+private val OnAccent = Color(0xFFFFFFFF)
+val AccentHi = Color(0xFFFF5A3C)
 
 object Type {
     val titleLarge = TextStyle(fontSize = 24.sp, fontWeight = FontWeight.Bold, letterSpacing = (-0.4).sp)
@@ -100,16 +100,15 @@ fun JellyTheme(content: @Composable () -> Unit) {
 
 /** Light catching the edge of a glass pane. */
 fun Modifier.rim(shape: Shape, width: Dp = 1.dp): Modifier =
-    border(width, Brush.linearGradient(listOf(Color(0x80FFFFFF), Color(0x0DFFFFFF), Color(0x40FFFFFF))), shape)
+    border(width, Brush.linearGradient(listOf(Color(0x33FFFFFF), Color(0x08FFFFFF), Color(0x22FFFFFF))), shape)
 
 fun Modifier.glassFill(shape: Shape): Modifier =
-    background(Brush.verticalGradient(listOf(Color(0x2AFFFFFF), Color(0x0FFFFFFF))), shape).rim(shape)
+    background(Color(0xCC1C1C20), shape).rim(shape)
 
 /** Soft ember and teal glow behind the whole app. */
 fun Modifier.ambient(): Modifier = drawBehind {
     drawRect(Bg)
-    drawRect(Brush.radialGradient(listOf(Color(0x59FF6A3D), Color.Transparent), Offset(size.width * 0.1f, size.height * 0.02f), size.maxDimension * 0.75f))
-    drawRect(Brush.radialGradient(listOf(Color(0x2814B8A6), Color.Transparent), Offset(size.width * 0.95f, size.height * 0.9f), size.maxDimension * 0.7f))
+    drawRect(Brush.radialGradient(listOf(Color(0x30E5382D), Color.Transparent), Offset(size.width * 0.5f, 0f), size.maxDimension * 0.6f))
 }
 
 // ---------------------------------------------------------------------------------------------------------------
@@ -281,7 +280,7 @@ fun OutlinedTextField(
     Column(modifier, verticalArrangement = Arrangement.spacedBy(6.dp)) {
         if (label != null) CompositionLocalProvider(LocalContentColor provides InkDim, LocalTextStyle provides Type.labelLarge) { label() }
         Box(
-            Modifier.fillMaxWidth().background(Color(0x14FFFFFF), shape)
+            Modifier.fillMaxWidth().background(Color(0xFF1C1C20), shape)
                 .border(if (focused) 2.dp else 1.dp, if (focused) SolidColor(Accent) else Brush.linearGradient(listOf(Color(0x66FFFFFF), Color(0x1AFFFFFF))), shape)
                 .padding(horizontal = 16.dp, vertical = 14.dp),
         ) {

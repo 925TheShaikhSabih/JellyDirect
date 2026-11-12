@@ -71,6 +71,7 @@ class App : Application(), ImageLoaderFactory {
 
     override fun newImageLoader(): ImageLoader = ImageLoader.Builder(this)
         .okHttpClient(SharedHttp)
+        .crossfade(200)
         .memoryCache { MemoryCache.Builder(this).maxSizePercent(0.20).build() }
         .diskCache { DiskCache.Builder().directory(cacheDir.resolve("img")).maxSizeBytes(200L * 1024 * 1024).build() }
         .crossfade(150)

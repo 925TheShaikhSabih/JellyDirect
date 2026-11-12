@@ -1,5 +1,21 @@
 package com.jellydirect.app
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.border
+import androidx.compose.runtime.saveable.rememberSaveable
+import com.jellydirect.app.ui.MemCache
+import com.jellydirect.app.ui.ProfilePicker
+
 import android.app.UiModeManager
 import android.content.res.Configuration
 import android.net.Uri
@@ -91,7 +107,13 @@ class MainActivity : ComponentActivity() {
                     crash?.let { CrashDialog(it) { crash = null } }
                     Box(Modifier.fillMaxSize().ambient()) {
                         val a = api
-                        if (a == null) AuthScreen(onDone = {}) else Shell(a)
+                        val accounts by app.store.accounts.collectAsState()
+                        var chosen by rememberSaveable { mutableStateOf(false) }
+                        if (a == null) AuthScreen(onDone = {})
+                        else if (!chosen && accounts.size > 1) ProfilePicker(accounts, app.store.activeKey) { acc ->
+                            if (acc.key != app.store.activeKey) { MemCache.map.clear(); app.switchTo(acc) }
+                            chosen = true
+                        } else Shell(a)
                     }
                 }
             }
@@ -128,22 +150,38 @@ private fun NavItem(d: Dest, selected: Boolean, onClick: () -> Unit) {
     }
 }
 
-/** Floating pill that blurs whatever scrolls underneath it (real blur on Android 12+, frosted tint before that). */
 @Composable
-private fun BoxScope.GlassBar(dests: List<Dest>, route: String?, haze: HazeState, onSelect: (String) -> Unit) {
-    val shape = RoundedCornerShape(32.dp)
+private fun PillItem(d: Dest, selected: Boolean, onClick: () -> Unit) {
+    val shape = RoundedCornerShape(50)
+    val tint by animateColorAsState(if (selected) Accent else InkDim, tween(220), label = "navTint")
+    val edge by animateColorAsState(if (selected) Accent else Color.Transparent, tween(220), label = "navEdge")
+    val fill by animateColorAsState(if (selected) Color(0x1FE5382D) else Color.Transparent, tween(220), label = "navFill")
     Row(
-        Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(bottom = 12.dp)
+        Modifier.animateContentSize(spring(dampingRatio = 0.75f, stiffness = 420f))
+            .focusClick(shape, onClick = onClick)
+            .background(fill, shape)
+            .border(1.5.dp, edge, shape)
+            .padding(horizontal = 12.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(d.icon, d.label, tint = tint)
+        if (selected) Text(d.label, Modifier.padding(start = 6.dp), style = Type.labelLarge, color = tint, maxLines = 1)
+    }
+}
+
+/** Floating pill that blurs what scrolls underneath it. The selected tab grows to show its name. */
+@Composable
+private fun GlassBar(dests: List<Dest>, route: String?, haze: HazeState, onSelect: (String) -> Unit) {
+    val shape = RoundedCornerShape(50)
+    Row(
+        Modifier.navigationBarsPadding().padding(bottom = 14.dp)
             .clip(shape)
-            .hazeEffect(
-                state = haze,
-                style = HazeStyle(backgroundColor = Bg, tints = emptyList(), blurRadius = 28.dp, noiseFactor = 0.04f),
-            )
-            .background(Color(0x66201A1E))
+            .hazeEffect(state = haze, style = HazeStyle(backgroundColor = Bg, tints = emptyList(), blurRadius = 24.dp, noiseFactor = 0.03f))
+            .background(Color(0xB8141416))
             .rim(shape)
-            .padding(horizontal = 8.dp, vertical = 6.dp),
+            .padding(horizontal = 6.dp, vertical = 5.dp),
         horizontalArrangement = Arrangement.spacedBy(2.dp),
-    ) { dests.forEach { d -> NavItem(d, route == d.route) { onSelect(d.route) } } }
+    ) { dests.forEach { d -> PillItem(d, route == d.route) { onSelect(d.route) } } }
 }
 
 @Composable
@@ -170,8 +208,14 @@ private fun Shell(api: JellyApi) {
     Row(Modifier.fillMaxSize()) {
         if (tv && showNav) GlassRail(dests, route) { nav.top(it) }
         Box(Modifier.weight(1f).fillMaxHeight()) {
-            NavHost(nav, startDestination = HOME.route, modifier = Modifier.fillMaxSize().hazeSource(haze)) {
-                composable("home") { HomeScreen(api, ::open, ::openLib) }
+            NavHost(
+                nav, startDestination = HOME.route, modifier = Modifier.fillMaxSize().hazeSource(haze),
+                enterTransition = { fadeIn(tween(260)) + scaleIn(tween(260), initialScale = 0.97f) },
+                exitTransition = { fadeOut(tween(160)) },
+                popEnterTransition = { fadeIn(tween(260)) },
+                popExitTransition = { fadeOut(tween(160)) + scaleOut(tween(200), targetScale = 0.97f) },
+            ) {
+                composable("home") { HomeScreen(api, ::open, ::openLib, onSearch = { nav.top("search") }, onProfile = { nav.top("settings") }) }
                 composable("libraries") { LibrariesScreen(api, ::openLib) }
                 composable("live") { LiveTvScreen(api) }
                 composable("search") { SearchScreen(api, ::open) }
@@ -188,7 +232,11 @@ private fun Shell(api: JellyApi) {
                     AuthScreen(onDone = { nav.popBackStack() }, onCancel = { nav.popBackStack() }, presetUrl = preset)
                 }
             }
-            if (!tv && showNav) GlassBar(dests, route, haze) { nav.top(it) }
+            if (!tv) AnimatedVisibility(
+                showNav, Modifier.align(Alignment.BottomCenter),
+                enter = slideInVertically(tween(300)) { it } + fadeIn(tween(300)),
+                exit = slideOutVertically(tween(200)) { it } + fadeOut(tween(200)),
+            ) { GlassBar(dests, route, haze) { nav.top(it) } }
         }
     }
 }

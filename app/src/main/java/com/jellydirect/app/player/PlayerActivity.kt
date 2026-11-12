@@ -1,5 +1,17 @@
 package com.jellydirect.app.player
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Speed
+import com.jellydirect.app.ui.focusClick
+import com.jellydirect.app.ui.glassFill
+
 import android.app.PictureInPictureParams
 import android.app.UiModeManager
 import android.content.Context
@@ -617,8 +629,44 @@ class PlayerActivity : ComponentActivity() {
                 }
             }
 
-            if (controls && error == null && !inPip) Controls(fr)
+            AnimatedVisibility(
+                visible = controls && error == null && !inPip,
+                enter = fadeIn(tween(220)), exit = fadeOut(tween(180)),
+            ) { Controls(fr) }
             if (showTracks) TracksDialog()
+            if (showSpeed) SpeedDialog()
+        }
+    }
+
+    private var rate by androidx.compose.runtime.mutableFloatStateOf(1f)
+    private var showSpeed by mutableStateOf(false)
+
+    @Composable
+    private fun TrackRow(name: String, on: Boolean, onClick: () -> Unit) {
+        Row(
+            Modifier.fillMaxWidth().focusClick(RoundedCornerShape(8.dp), onClick = onClick).padding(vertical = 8.dp, horizontal = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(Modifier.width(26.dp)) { if (on) Icon(Icons.Filled.Check, null, Modifier.size(18.dp), tint = Accent) }
+            Text(name, style = Type.bodySmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
+        }
+    }
+
+    @Composable
+    private fun Action(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, onClick: () -> Unit) {
+        Column(
+            Modifier.focusClick(RoundedCornerShape(12.dp), onClick = onClick).padding(horizontal = 10.dp, vertical = 6.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Icon(icon, label, tint = Color.White)
+            Text(label, style = Type.labelSmall, color = Color(0xFFD0D0D0), maxLines = 1)
+        }
+    }
+
+    @Composable
+    private fun CtlIcon(icon: androidx.compose.ui.graphics.vector.ImageVector, desc: String, onClick: () -> Unit) {
+        Box(Modifier.size(56.dp).focusClick(CircleShape, onClick = onClick), contentAlignment = Alignment.Center) {
+            Icon(icon, desc, Modifier.size(34.dp), tint = Color.White)
         }
     }
 
@@ -626,40 +674,27 @@ class PlayerActivity : ComponentActivity() {
     private fun Controls(fr: FocusRequester) {
         val s = settings
         var drag by remember { mutableStateOf<Float?>(null) }
-        Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color(0xAA000000), Color.Transparent, Color(0xCC000000))))) {
+        Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color(0xB3000000), Color.Transparent, Color(0xD9000000))))) {
             Row(Modifier.align(Alignment.TopStart).fillMaxWidth().padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
                 IconButton(onClick = { finish() }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = Color.White) }
-                Column(Modifier.weight(1f)) {
-                    Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis, style = Type.titleMedium)
-                    if (subtitle.isNotBlank()) Text(subtitle, maxLines = 1, overflow = TextOverflow.Ellipsis, color = Color(0xFFB0A8AE), style = Type.bodySmall)
+                Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis, style = Type.titleMedium, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                    if (subtitle.isNotBlank()) Text(subtitle, maxLines = 1, overflow = TextOverflow.Ellipsis, color = Color(0xFFB0A8AE), style = Type.bodySmall, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
                 }
-                if (isLive) Text("● LIVE", color = Color(0xFFFF6B6B), modifier = Modifier.padding(end = 12.dp))
+                if (isLive) Text("● LIVE", color = Color(0xFFFF6B6B), modifier = Modifier.padding(horizontal = 8.dp)) else Box(Modifier.width(46.dp))
             }
 
-            Row(Modifier.align(Alignment.Center), horizontalArrangement = Arrangement.spacedBy(20.dp), verticalAlignment = Alignment.CenterVertically) {
-                if (isLive) {
-                    IconButton(onClick = { channelStep(-1) }) { Icon(Icons.Filled.SkipPrevious, "Previous channel", tint = Color.White) }
-                } else {
-                    IconButton(onClick = { seekBy(-s.skipBackSec * 1000L) }) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Filled.FastRewind, "Back ${s.skipBackSec}s", tint = Color.White)
-                            Text("${s.skipBackSec}", style = Type.labelSmall)
-                        }
-                    }
+            Row(Modifier.align(Alignment.Center), horizontalArrangement = Arrangement.spacedBy(36.dp), verticalAlignment = Alignment.CenterVertically) {
+                if (isLive) CtlIcon(Icons.Filled.SkipPrevious, "Previous channel") { channelStep(-1) }
+                else CtlIcon(Icons.Filled.FastRewind, "Back ${s.skipBackSec}s") { seekBy(-s.skipBackSec * 1000L) }
+                Box(
+                    Modifier.size(76.dp).focusRequester(fr).focusClick(CircleShape, onClick = { togglePlay() }).glassFill(CircleShape),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(if (playing) Icons.Filled.Pause else Icons.Filled.PlayArrow, if (playing) "Pause" else "Play", Modifier.size(42.dp), tint = Color.White)
                 }
-                IconButton(onClick = { togglePlay() }, modifier = Modifier.focusRequester(fr)) {
-                    Icon(if (playing) Icons.Filled.Pause else Icons.Filled.PlayArrow, if (playing) "Pause" else "Play", tint = Color.White)
-                }
-                if (isLive) {
-                    IconButton(onClick = { channelStep(1) }) { Icon(Icons.Filled.SkipNext, "Next channel", tint = Color.White) }
-                } else {
-                    IconButton(onClick = { seekBy(s.skipFwdSec * 1000L) }) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text("${s.skipFwdSec}", style = Type.labelSmall)
-                            Icon(Icons.Filled.FastForward, "Forward ${s.skipFwdSec}s", tint = Color.White)
-                        }
-                    }
-                }
+                if (isLive) CtlIcon(Icons.Filled.SkipNext, "Next channel") { channelStep(1) }
+                else CtlIcon(Icons.Filled.FastForward, "Forward ${s.skipFwdSec}s") { seekBy(s.skipFwdSec * 1000L) }
             }
 
             Column(Modifier.align(Alignment.BottomStart).fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
@@ -677,13 +712,33 @@ class PlayerActivity : ComponentActivity() {
                         Text(formatClock(lenMs), style = Type.bodySmall)
                     }
                 }
-                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    IconButton(onClick = { showTracks = true }) { Icon(Icons.Filled.Subtitles, "Audio and subtitles", tint = Color.White) }
-                    IconButton(onClick = { cycleAspect() }) { Icon(Icons.Filled.AspectRatio, "Aspect ratio", tint = Color.White) }
-                    if (!isTv) IconButton(onClick = { enterPip() }) { Icon(Icons.Filled.PictureInPictureAlt, "Picture in picture", tint = Color.White) }
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                    if (!isLive) Action(Icons.Filled.Speed, "Speed (${rate}x)") { showSpeed = true }
+                    Action(Icons.Filled.Subtitles, "Audio & Subtitles") { showTracks = true }
+                    Action(Icons.Filled.AspectRatio, "Aspect") { cycleAspect() }
+                    val up = nextEp
+                    if (up != null && !isLive) Action(Icons.Filled.SkipNext, "Next Episode") { play(up.id, true) }
+                    if (!isTv) Action(Icons.Filled.PictureInPictureAlt, "PiP") { enterPip() }
                 }
             }
         }
+    }
+
+    @Composable
+    private fun SpeedDialog() {
+        AlertDialog(
+            onDismissRequest = { showSpeed = false },
+            containerColor = Color(0xFF231F26),
+            title = { Text("Playback speed") },
+            text = {
+                Column {
+                    listOf(0.5f, 0.75f, 1.0f, 1.25f, 1.5f, 2.0f).forEach { v ->
+                        TrackRow(if (v == 1.0f) "1.0x (Normal)" else "${v}x", rate == v) { mp.setRate(v); rate = v; showSpeed = false }
+                    }
+                }
+            },
+            confirmButton = { TextButton(onClick = { showSpeed = false }) { Text("Close") } },
+        )
     }
 
     @Composable
@@ -700,17 +755,15 @@ class PlayerActivity : ComponentActivity() {
             title = { Text("Audio & subtitles") },
             text = {
                 Column(Modifier.verticalScroll(rememberScrollState())) {
-                    Text("Audio", color = Accent, style = Type.labelLarge)
-                    if (audio.isEmpty()) Text("No tracks", color = Color.Gray)
-                    audio.forEach { t ->
-                        TextButton(onClick = { mp.setAudioTrack(t.id); tick++ }) {
-                            Text((if (t.id == curA) "● " else "○ ") + t.name.orEmpty())
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                        Column(Modifier.weight(1f)) {
+                            Text("Audio", color = Accent, style = Type.labelLarge)
+                            if (audio.isEmpty()) Text("No tracks", color = Color.Gray)
+                            audio.forEach { t -> TrackRow(t.name.orEmpty(), t.id == curA) { mp.setAudioTrack(t.id); tick++ } }
                         }
-                    }
-                    Text("Subtitles", color = Accent, style = Type.labelLarge, modifier = Modifier.padding(top = 8.dp))
-                    subs.forEach { t ->
-                        TextButton(onClick = { mp.setSpuTrack(t.id); tick++ }) {
-                            Text((if (t.id == curS) "● " else "○ ") + t.name.orEmpty())
+                        Column(Modifier.weight(1f)) {
+                            Text("Subtitles", color = Accent, style = Type.labelLarge)
+                            subs.forEach { t -> TrackRow(t.name.orEmpty(), t.id == curS) { mp.setSpuTrack(t.id); tick++ } }
                         }
                     }
                     Text("Sync (±100 ms)", color = Accent, style = Type.labelLarge, modifier = Modifier.padding(top = 8.dp))

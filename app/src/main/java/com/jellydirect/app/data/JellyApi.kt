@@ -81,7 +81,7 @@ data class ItemQuery(
 )
 
 private const val F_LIST = "Overview,Genres,ChildCount"
-private const val F_DETAIL = "Overview,Genres,MediaSources,MediaStreams,Path,ChildCount"
+private const val F_DETAIL = "Overview,Genres,MediaSources,MediaStreams,Path,ChildCount,People"
 
 class JellyApi(
     val baseUrl: String,

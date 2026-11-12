@@ -214,7 +214,7 @@ fun PagedGrid(
     }
 
     LazyVerticalGrid(
-        columns = GridCells.Adaptive(if (tv) 170.dp else 128.dp),
+        columns = if (tv) GridCells.Adaptive(170.dp) else GridCells.Fixed(3),
         state = state,
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(start = 16.dp, top = 8.dp, end = 16.dp, bottom = 120.dp),
@@ -222,7 +222,7 @@ fun PagedGrid(
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         item(span = { GridItemSpan(maxLineSpan) }) { androidx.compose.foundation.layout.Column { header() } }
-        items(items, key = { it.id }) { PosterCard(it, api, onLong = { m -> menu.value = m }, onClick = onOpen) }
+        items(items, key = { it.id }) { PosterCard(it, api, modifier = Modifier.animateItem(), fill = true, onLong = { m -> menu.value = m }, onClick = onOpen) }
         item(span = { GridItemSpan(maxLineSpan) }) {
             Box(Modifier.fillMaxSize().padding(16.dp), Alignment.Center) {
                 when {
