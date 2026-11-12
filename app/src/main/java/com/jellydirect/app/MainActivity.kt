@@ -184,6 +184,16 @@ private fun GlassBar(dests: List<Dest>, route: String?, haze: HazeState, onSelec
     ) { dests.forEach { d -> PillItem(d, route == d.route) { onSelect(d.route) } } }
 }
 
+/** Own function so AnimatedVisibility resolves against the Box, not the surrounding Row. */
+@Composable
+private fun BoxScope.FloatingBar(show: Boolean, dests: List<Dest>, route: String?, haze: HazeState, onSelect: (String) -> Unit) {
+    AnimatedVisibility(
+        show, Modifier.align(Alignment.BottomCenter),
+        enter = slideInVertically(tween(300)) { it } + fadeIn(tween(300)),
+        exit = slideOutVertically(tween(200)) { it } + fadeOut(tween(200)),
+    ) { GlassBar(dests, route, haze, onSelect) }
+}
+
 @Composable
 private fun GlassRail(dests: List<Dest>, route: String?, onSelect: (String) -> Unit) {
     val shape = RoundedCornerShape(28.dp)
@@ -232,11 +242,7 @@ private fun Shell(api: JellyApi) {
                     AuthScreen(onDone = { nav.popBackStack() }, onCancel = { nav.popBackStack() }, presetUrl = preset)
                 }
             }
-            if (!tv) AnimatedVisibility(
-                showNav, Modifier.align(Alignment.BottomCenter),
-                enter = slideInVertically(tween(300)) { it } + fadeIn(tween(300)),
-                exit = slideOutVertically(tween(200)) { it } + fadeOut(tween(200)),
-            ) { GlassBar(dests, route, haze) { nav.top(it) } }
+            if (!tv) FloatingBar(showNav, dests, route, haze) { nav.top(it) }
         }
     }
 }

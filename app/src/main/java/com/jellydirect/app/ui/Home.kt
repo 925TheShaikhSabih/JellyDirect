@@ -127,7 +127,7 @@ private fun TopBar(api: JellyApi, name: String, onSearch: () -> Unit, onProfile:
         Text("JellyDirect", Modifier.padding(start = 10.dp).weight(1f), style = Type.titleMedium)
         IconButton(onClick = onSearch) { Icon(Icons.Filled.Search, "Search") }
         Spacer(Modifier.width(10.dp))
-        Avatar(userImage(api.baseUrl, api.userId), name, Modifier.size(44.dp).focusClick(CircleShape, onClick = onProfile))
+        Avatar(userImage(api.baseUrl, api.userId.orEmpty()), name, Modifier.size(44.dp).focusClick(CircleShape, onClick = onProfile))
     }
 }
 
