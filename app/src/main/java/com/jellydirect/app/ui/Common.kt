@@ -79,9 +79,10 @@ import kotlinx.coroutines.launch
 
 val LocalIsTv = staticCompositionLocalOf { false }
 
-val Accent = Color(0xFFE5382D)
+val Crimson = Color(0xFFA90635)
+val Accent = Color(0xFFE04728)
 val Gold = Color(0xFFFFC15E)
-val BrandBrush = androidx.compose.ui.graphics.Brush.linearGradient(listOf(Accent, AccentHi))
+val BrandBrush = androidx.compose.ui.graphics.Brush.linearGradient(listOf(Crimson, AccentHi))
 val Surface1 = Color(0xFF151517)
 val Surface2 = Color(0xFF1E1E21)
 val Bg = Color(0xFF0B0B0D)

@@ -1,5 +1,9 @@
 package com.jellydirect.app.ui
 
+import androidx.compose.foundation.Image
+import androidx.compose.ui.res.painterResource
+import com.jellydirect.app.R
+
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 
@@ -147,13 +151,11 @@ fun AuthScreen(onDone: () -> Unit, onCancel: (() -> Unit)? = null, presetUrl: St
             verticalArrangement = Arrangement.spacedBy(12.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Text(
-                BuildConfig.BRAND,
-                style = Type.titleLarge.copy(
-                    brush = BrandBrush, fontWeight = FontWeight.Black,
-                    letterSpacing = if (BuildConfig.FIXED_SERVER_URL.isBlank()) 0.sp else 4.sp,
-                ),
-            )
+            if (BuildConfig.FIXED_SERVER_URL.isBlank()) {
+                Text(BuildConfig.BRAND, style = Type.titleLarge.copy(brush = BrandBrush, fontWeight = FontWeight.Black))
+            } else {
+                Image(painterResource(R.drawable.kumo_wordmark), BuildConfig.BRAND, Modifier.height(48.dp))
+            }
             if (info == null && fixed != null) {
                 Button(onClick = { connect() }, enabled = !busy) { Text(if (busy) "Connecting..." else "Retry") }
             } else if (info == null) {

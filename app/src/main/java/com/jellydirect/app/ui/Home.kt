@@ -1,5 +1,9 @@
 package com.jellydirect.app.ui
 
+import androidx.compose.foundation.Image
+import androidx.compose.ui.res.painterResource
+import com.jellydirect.app.R
+
 import com.jellydirect.app.BuildConfig
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
@@ -132,7 +136,9 @@ private fun TopBar(api: JellyApi, name: String, onSearch: () -> Unit, onProfile:
             Text(BuildConfig.BRAND, Modifier.padding(start = 10.dp).weight(1f), style = Type.titleMedium)
         } else {
             // Wordmark only, like a streaming service's own app.
-            Text(BuildConfig.BRAND, Modifier.weight(1f), style = Type.titleLarge.copy(brush = BrandBrush, fontWeight = FontWeight.Black, letterSpacing = 4.sp))
+            Box(Modifier.weight(1f)) {
+                Image(painterResource(R.drawable.kumo_wordmark), BuildConfig.BRAND, Modifier.height(26.dp), alignment = Alignment.CenterStart)
+            }
         }
         IconButton(onClick = onSearch) { Icon(Icons.Filled.Search, "Search") }
         Spacer(Modifier.width(10.dp))

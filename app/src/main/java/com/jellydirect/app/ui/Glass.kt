@@ -75,7 +75,7 @@ val Ink = Color(0xFFF4EFEA)
 val InkDim = Color(0xFFB0A8AE)
 val Danger = Color(0xFFFF6B6B)
 private val OnAccent = Color(0xFFFFFFFF)
-val AccentHi = Color(0xFFFF5A3C)
+val AccentHi = Color(0xFFF76323)
 
 object Type {
     val titleLarge = TextStyle(fontSize = 24.sp, fontWeight = FontWeight.Bold, letterSpacing = (-0.4).sp)
@@ -108,7 +108,7 @@ fun Modifier.glassFill(shape: Shape): Modifier =
 /** Soft ember and teal glow behind the whole app. */
 fun Modifier.ambient(): Modifier = drawBehind {
     drawRect(Bg)
-    drawRect(Brush.radialGradient(listOf(Color(0x30E5382D), Color.Transparent), Offset(size.width * 0.5f, 0f), size.maxDimension * 0.6f))
+    drawRect(Brush.radialGradient(listOf(Color(0x45A90635), Color.Transparent), Offset(size.width * 0.5f, 0f), size.maxDimension * 0.6f))
 }
 
 // ---------------------------------------------------------------------------------------------------------------
@@ -171,7 +171,7 @@ fun Button(onClick: () -> Unit, modifier: Modifier = Modifier, enabled: Boolean 
     ButtonRow(
         onClick, modifier, enabled, OnAccent,
         Modifier.padding(horizontal = 22.dp, vertical = 12.dp),
-        Modifier.background(Brush.linearGradient(listOf(Accent, AccentHi)), shape).rim(shape),
+        Modifier.background(Brush.linearGradient(listOf(Crimson, AccentHi)), shape).rim(shape),
         shape, content,
     )
 }
