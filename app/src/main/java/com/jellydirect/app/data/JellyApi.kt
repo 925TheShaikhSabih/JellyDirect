@@ -561,7 +561,7 @@ class JellyApi(
         return url(u.encodedPath).newBuilder().addQueryParameter("api_key", token.orEmpty()).build().toString()
     }
 
-    private fun isUsableRemoteUrl(path: String): Boolean {
+    fun isUsableRemoteUrl(path: String): Boolean {
         val p = path.trim()
         if (!p.startsWith("http://", true) && !p.startsWith("https://", true)) return false
         val host = p.toHttpUrlOrNullHost() ?: return false

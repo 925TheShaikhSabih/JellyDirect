@@ -1,5 +1,7 @@
 package com.jellydirect.app.ui
 
+import androidx.compose.material.icons.filled.Download
+
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.size
@@ -99,6 +101,8 @@ fun DetailScreen(api: JellyApi, id: String, onOpen: (Item) -> Unit) {
         val menu = remember { mutableStateOf<Item?>(null) }
         val played = item.userData?.played == true
         val fav = item.userData?.isFavorite == true
+        val startDl = rememberDownloader()
+        val seasonEps = (episodes?.state?.value as? Load.Ok)?.v ?: d.children.takeIf { item.type == "Season" }
 
         LazyVerticalGrid(
             columns = GridCells.Adaptive(128.dp),
@@ -137,7 +141,7 @@ fun DetailScreen(api: JellyApi, id: String, onOpen: (Item) -> Unit) {
             }
             item(span = { GridItemSpan(maxLineSpan) }) {
                 Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp), itemVerticalAlignment = Alignment.CenterVertically) {
                         if (item.isPlayable || item.type == "Series") {
                             val resumeMs = item.positionMs
                             PlayPill(if (resumeMs > 0 && item.type != "Series") "Resume ${formatDuration(resumeMs)}" else "Play") {
@@ -150,7 +154,8 @@ fun DetailScreen(api: JellyApi, id: String, onOpen: (Item) -> Unit) {
                                 } else playItem(ctx, item.id)
                             }
                         }
-                        Box(Modifier.weight(1f))
+                        if (item.isPlayable) DlAction(item)
+                        if (!seasonEps.isNullOrEmpty()) DetailAction(Icons.Filled.Download, "Season") { startDl(seasonEps) }
                         if (item.positionMs > 0 && item.isPlayable) DetailAction(Icons.Filled.Replay, "Restart") { playItem(ctx, item.id, fromStart = true) }
                         DetailAction(if (fav) Icons.Filled.Star else Icons.Outlined.StarBorder, "My List", if (fav) Gold else Color.White) {
                             scope.launch { runCatching { api.setFavorite(item.id, !fav) }; loader.reload() }
@@ -242,6 +247,7 @@ private fun EpisodeRow(ep: Item, api: JellyApi, onLong: (Item) -> Unit, onClick:
             if (sub.isNotEmpty()) Text(sub.joinToString(" · "), color = Color.Gray, style = Type.bodySmall)
             ep.overview?.let { Text(it, maxLines = 3, overflow = TextOverflow.Ellipsis, color = Color(0xFFB0A8AE), style = Type.bodySmall) }
         }
+        DlIcon(ep)
     }
 }
 

@@ -25,11 +25,19 @@ import com.jellydirect.app.ui.MemCache
 import com.jellydirect.app.ui.ProfilePicker
 
 import android.app.UiModeManager
+import android.content.Context
 import android.content.res.Configuration
 import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import com.jellydirect.app.ui.Splash
+import com.jellydirect.app.ui.DownloadsScreen
+import com.jellydirect.app.data.Downloads
+import android.net.NetworkCapabilities
+import android.net.ConnectivityManager
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.material.icons.filled.Download
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -46,7 +54,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.LiveTv
-import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.VideoLibrary
 import androidx.compose.runtime.Composable
@@ -107,6 +114,7 @@ class MainActivity : ComponentActivity() {
         val tv = (getSystemService(UI_MODE_SERVICE) as UiModeManager).currentModeType == Configuration.UI_MODE_TYPE_TELEVISION ||
             packageManager.hasSystemFeature("android.software.leanback")
         val app = application as App
+        Downloads.resumePending()
         setContent {
             JellyTheme {
                 CompositionLocalProvider(LocalIsTv provides tv) {
@@ -117,11 +125,15 @@ class MainActivity : ComponentActivity() {
                         val a = api
                         val accounts by app.store.accounts.collectAsState()
                         var chosen by rememberSaveable { mutableStateOf(false) }
+                        var adding by remember { mutableStateOf(false) }
+                        var splashDone by rememberSaveable { mutableStateOf(false) }
                         if (a == null) AuthScreen(onDone = {})
-                        else if (!chosen && accounts.size > 1) ProfilePicker(accounts, app.store.activeKey) { acc ->
+                        else if (adding) AuthScreen(onDone = { adding = false; chosen = true }, onCancel = { adding = false }, presetUrl = a.baseUrl)
+                        else if (!chosen) ProfilePicker(accounts, app.store.activeKey, onAdd = { adding = true }) { acc ->
                             if (acc.key != app.store.activeKey) { MemCache.map.clear(); app.switchTo(acc) }
                             chosen = true
                         } else Shell(a)
+                        if (!splashDone) Splash { splashDone = true }
                     }
                 }
             }
@@ -134,8 +146,13 @@ private class Dest(val route: String, val label: String, val icon: ImageVector)
 private val HOME = Dest("home", "Home", Icons.Filled.Home)
 private val LIBS = Dest("libraries", "Libraries", Icons.Filled.VideoLibrary)
 private val LIVE = Dest("live", "Live TV", Icons.Filled.LiveTv)
-private val SEARCH = Dest("search", "Search", Icons.Filled.Search)
+private val DOWNLOADS = Dest("downloads", "Downloads", Icons.Filled.Download)
 private val SETTINGS = Dest("settings", "Settings", Icons.Filled.Settings)
+
+private fun isOnline(ctx: Context): Boolean = runCatching {
+    val cm = ctx.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+    cm.getNetworkCapabilities(cm.activeNetwork)?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) == true
+}.getOrDefault(true)
 
 private fun NavHostController.top(route: String) = navigate(route) {
     popUpTo(graph.findStartDestination().id) { saveState = true }
@@ -226,7 +243,9 @@ private fun Shell(api: JellyApi) {
     val nav = rememberNavController()
     val tv = LocalIsTv.current
     val haze = rememberHazeState()
-    val dests = listOf(HOME, LIBS, LIVE, SEARCH, SETTINGS)
+    val dests = listOf(HOME, LIBS, LIVE, DOWNLOADS, SETTINGS)
+    val ctx = LocalContext.current
+    val start = remember { if (isOnline(ctx)) HOME.route else DOWNLOADS.route }
     val route = nav.currentBackStackEntryAsState().value?.destination?.route
     val showNav = route == null || dests.any { it.route == route }
 
@@ -237,15 +256,16 @@ private fun Shell(api: JellyApi) {
         if (tv && showNav) GlassRail(dests, route) { nav.top(it) }
         Box(Modifier.weight(1f).fillMaxHeight()) {
             NavHost(
-                nav, startDestination = HOME.route, modifier = Modifier.fillMaxSize().hazeSource(haze),
+                nav, startDestination = start, modifier = Modifier.fillMaxSize().hazeSource(haze),
                 enterTransition = { fadeIn(tween(260)) + scaleIn(tween(260), initialScale = 0.97f) },
                 exitTransition = { fadeOut(tween(160)) },
                 popEnterTransition = { fadeIn(tween(260)) },
                 popExitTransition = { fadeOut(tween(160)) + scaleOut(tween(200), targetScale = 0.97f) },
             ) {
-                composable("home") { HomeScreen(api, ::open, ::openLib, onSearch = { nav.top("search") }, onProfile = { nav.top("settings") }) }
+                composable("home") { HomeScreen(api, ::open, ::openLib, onSearch = { nav.navigate("search") }, onProfile = { nav.top("settings") }) }
                 composable("libraries") { LibrariesScreen(api, ::openLib) }
                 composable("live") { LiveTvScreen(api) }
+                composable("downloads") { DownloadsScreen() }
                 composable("search") { SearchScreen(api, ::open) }
                 composable("settings") { SettingsScreen(onAddAccount = { nav.navigate("auth?url=${Uri.encode(it ?: "")}") }) }
                 composable("library/{id}") { e ->

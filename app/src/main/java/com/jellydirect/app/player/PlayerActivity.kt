@@ -1,5 +1,7 @@
 package com.jellydirect.app.player
 
+import com.jellydirect.app.data.Downloads
+
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -204,7 +206,7 @@ class PlayerActivity : ComponentActivity() {
                 posMs = mp.getTime().coerceAtLeast(0L)
                 lenMs = mp.getLength().coerceAtLeast(0L)
                 checkNextEpisode()
-                if (playing && ++ticks % 20 == 0) report(paused = false)
+                if (playing && ++ticks % 20 == 0) { report(paused = false); localId?.let { Downloads.setPosition(it, posMs) } }
             }
         }
 
@@ -216,6 +218,7 @@ class PlayerActivity : ComponentActivity() {
     // ----------------------------------------------------------------------------------------
 
     private var lastId: String? = null
+    private var localId: String? = null
 
     private fun play(id: String, fromStart: Boolean, forceServer: Boolean = false) {
         lastId = id
@@ -223,6 +226,18 @@ class PlayerActivity : ComponentActivity() {
         loadJob = lifecycleScope.launch {
             error = null; buffering = true; nextEp = null; nextDismissed = false; triedFallback = false
             finishReport()
+            val localFile = Downloads.fileFor(id)
+            if (localFile != null) {
+                // Saved on this device: play the file, no server needed.
+                val meta = Downloads.get(id)
+                localId = id; cur = null; isLive = false; startedReport = false
+                title = meta?.seriesName ?: meta?.name.orEmpty()
+                subtitle = if (meta?.seriesName != null) listOfNotNull(meta.code, meta.name).joinToString(" · ") else ""
+                viewReady.await()
+                open(Uri.fromFile(localFile).toString(), if (fromStart) 0L else (meta?.positionMs ?: 0L))
+                return@launch
+            }
+            localId = null
             try {
                 val item = api.item(id)
                 val ticks = if (fromStart || item.progress >= 0.95f) 0L else (item.userData?.positionTicks ?: 0L)
@@ -260,7 +275,11 @@ class PlayerActivity : ComponentActivity() {
     private fun onPlaying() {
         if (startedReport) return
         startedReport = true
-        val p = cur ?: return
+        val p = cur
+        if (p == null) {
+            if (localId != null) runOnUiThread { applyTrackPrefs() }
+            return
+        }
         bg.launch { runCatching { api.reportStart(p, posMs * 10_000L) } }
         runOnUiThread {
             p.source.streams.filter { it.type == "Subtitle" && it.isExternal }.forEach { st ->
@@ -271,6 +290,11 @@ class PlayerActivity : ComponentActivity() {
     }
 
     private fun onError() {
+        if (localId != null && cur == null) {
+            buffering = false
+            error = "Couldn't play the downloaded file. Remove it from Downloads and save it again."
+            return
+        }
         val p = cur ?: return
         val queue = listOfNotNull(p.fallbackUrl) + p.moreFallbacks
         val fb = queue.firstOrNull()
@@ -319,6 +343,7 @@ class PlayerActivity : ComponentActivity() {
     }
 
     private fun finishReport() {
+        localId?.let { Downloads.setPosition(it, if (lenMs > 0 && posMs > lenMs - 30_000L) 0L else posMs) }
         val p = cur ?: return
         cur = null
         val pos = posMs * 10_000L
