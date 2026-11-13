@@ -649,9 +649,11 @@ class JellyApi(
 
     /** Portrait poster (2:3). Episodes fall back to their series poster. */
     fun poster(item: Item, maxWidth: Int = 320): String? {
-        item.imageTags["Primary"]?.let { return imageUrl(item.id, "Primary", it, maxWidth) }
         val sid = item.seriesId
         val st = item.seriesPrimaryTag
+        // An episode's own "Primary" image is a 16:9 still, so use the show's real poster instead.
+        if (item.type == "Episode" && sid != null && st != null) return imageUrl(sid, "Primary", st, maxWidth)
+        item.imageTags["Primary"]?.let { return imageUrl(item.id, "Primary", it, maxWidth) }
         if (sid != null && st != null) return imageUrl(sid, "Primary", st, maxWidth)
         return null
     }

@@ -76,7 +76,7 @@ fun HomeScreen(api: JellyApi, onOpen: (Item) -> Unit, onOpenLibrary: (Item) -> U
         if (skipFirst[0]) skipFirst[0] = false else loader.reload()
     }
     loader.Show { d ->
-        val heroes = (d.resume + d.nextUp + d.latest.flatMap { it.items }).distinctBy { it.id }.take(6)
+        val heroes = (d.resume + d.nextUp + d.latest.flatMap { it.items }).distinctBy { it.seriesId ?: it.id }.take(6)
         LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 120.dp)) {
             item { TopBar(api, me?.userName.orEmpty(), onSearch, onProfile) }
             item {
