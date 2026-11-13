@@ -1,5 +1,13 @@
 package com.jellydirect.app
 
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.ui.layout.layout
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.unit.Constraints
+import kotlin.math.roundToInt
+import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.graphics.graphicsLayer
+
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.animateContentSize
@@ -153,19 +161,29 @@ private fun NavItem(d: Dest, selected: Boolean, onClick: () -> Unit) {
 @Composable
 private fun PillItem(d: Dest, selected: Boolean, onClick: () -> Unit) {
     val shape = RoundedCornerShape(50)
-    val tint by animateColorAsState(if (selected) Accent else InkDim, tween(220), label = "navTint")
-    val edge by animateColorAsState(if (selected) Accent else Color.Transparent, tween(220), label = "navEdge")
-    val fill by animateColorAsState(if (selected) Color(0x1FE5382D) else Color.Transparent, tween(220), label = "navFill")
+    val p by animateFloatAsState(if (selected) 1f else 0f, spring(dampingRatio = 0.8f, stiffness = 380f), label = "navP")
+    val q = p.coerceIn(0f, 1f)
     Row(
-        Modifier.animateContentSize(spring(dampingRatio = 0.75f, stiffness = 420f))
-            .focusClick(shape, onClick = onClick)
-            .background(fill, shape)
-            .border(1.5.dp, edge, shape)
+        Modifier.focusClick(shape, onClick = onClick)
+            .background(Accent.copy(alpha = 0.12f * q), shape)
+            .border(1.5.dp, Accent.copy(alpha = q), shape)
             .padding(horizontal = 12.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Icon(d.icon, d.label, tint = tint)
-        if (selected) Text(d.label, Modifier.padding(start = 6.dp), style = Type.labelLarge, color = tint, maxLines = 1)
+        Icon(d.icon, d.label, tint = lerp(InkDim, Accent, q))
+        // The label takes up only as much room as the pill has grown, and fades in as it is revealed.
+        Text(
+            d.label,
+            Modifier
+                .clipToBounds()
+                .layout { m, c ->
+                    val pl = m.measure(c.copy(minWidth = 0, maxWidth = Constraints.Infinity))
+                    val gap = (6.dp.roundToPx() * q).roundToInt()
+                    layout(gap + (pl.width * q).roundToInt(), pl.height) { pl.placeRelative(gap, 0) }
+                }
+                .graphicsLayer { alpha = ((q - 0.35f) / 0.65f).coerceIn(0f, 1f) },
+            style = Type.labelLarge, color = Accent, maxLines = 1,
+        )
     }
 }
 

@@ -1,5 +1,9 @@
 package com.jellydirect.app.ui
 
+import com.jellydirect.app.BuildConfig
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
+
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
@@ -121,10 +125,15 @@ private fun TopBar(api: JellyApi, name: String, onSearch: () -> Unit, onProfile:
         Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = 16.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Box(Modifier.size(32.dp).background(BrandBrush, RoundedCornerShape(10.dp)), contentAlignment = Alignment.Center) {
-            Icon(Icons.Filled.PlayArrow, null, Modifier.size(20.dp), tint = Color.White)
+        if (BuildConfig.FIXED_SERVER_URL.isBlank()) {
+            Box(Modifier.size(32.dp).background(BrandBrush, RoundedCornerShape(10.dp)), contentAlignment = Alignment.Center) {
+                Icon(Icons.Filled.PlayArrow, null, Modifier.size(20.dp), tint = Color.White)
+            }
+            Text(BuildConfig.BRAND, Modifier.padding(start = 10.dp).weight(1f), style = Type.titleMedium)
+        } else {
+            // Wordmark only, like a streaming service's own app.
+            Text(BuildConfig.BRAND, Modifier.weight(1f), style = Type.titleLarge.copy(brush = BrandBrush, fontWeight = FontWeight.Black, letterSpacing = 4.sp))
         }
-        Text("JellyDirect", Modifier.padding(start = 10.dp).weight(1f), style = Type.titleMedium)
         IconButton(onClick = onSearch) { Icon(Icons.Filled.Search, "Search") }
         Spacer(Modifier.width(10.dp))
         Avatar(userImage(api.baseUrl, api.userId.orEmpty()), name, Modifier.size(44.dp).focusClick(CircleShape, onClick = onProfile))

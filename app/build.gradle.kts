@@ -24,12 +24,14 @@ android {
         create("standard") {
             dimension = "edition"
             buildConfigField("String", "FIXED_SERVER_URL", "\"\"")
+            buildConfigField("String", "BRAND", "\"JellyDirect\"")
         }
         // Same app with the server address built in: no setup screen, just sign in.
         create("server") {
             dimension = "edition"
             applicationIdSuffix = ".server"
             buildConfigField("String", "FIXED_SERVER_URL", "\"http://140.245.81.217:8096\"")
+            buildConfigField("String", "BRAND", "\"KUMO\"")
         }
     }
 
