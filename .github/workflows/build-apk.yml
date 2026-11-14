@@ -28,7 +28,7 @@ jobs:
       - name: Build release APKs
         run: |
           chmod +x gradlew
-          ./gradlew assembleRelease --no-daemon --stacktrace
+          ./gradlew assembleRelease -PbuildNumber=${{ github.run_number }} --no-daemon --stacktrace
 
       # Publishes the APKs as plain downloadable files on the repo's Releases page (no zip).
       - name: Publish release

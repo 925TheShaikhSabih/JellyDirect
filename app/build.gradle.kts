@@ -7,6 +7,9 @@ plugins {
     id("org.jetbrains.kotlin.plugin.serialization")
 }
 
+// CI passes the run number so every build is newer than the last (the updater compares these).
+val buildNumber = (project.findProperty("buildNumber") as String?)?.toIntOrNull() ?: 1
+
 android {
     namespace = "com.jellydirect.app"
     compileSdk = 36
@@ -15,8 +18,11 @@ android {
         applicationId = "com.jellydirect.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 1
-        versionName = "1.0.0"
+        versionCode = buildNumber
+        versionName = "1.0.$buildNumber"
+        buildConfigField("int", "BUILD", "$buildNumber")
+        // "owner/repo" of the GitHub project that publishes the releases (set automatically on Actions).
+        buildConfigField("String", "REPO", "\"${System.getenv("GITHUB_REPOSITORY") ?: ""}\"")
     }
 
     flavorDimensions += "edition"

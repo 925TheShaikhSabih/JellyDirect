@@ -1,6 +1,7 @@
 package com.jellydirect.app.player
 
 import com.jellydirect.app.data.Downloads
+import com.jellydirect.app.data.Segment
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
@@ -32,6 +33,7 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -105,6 +107,12 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import org.videolan.libvlc.LibVLC
+import androidx.compose.material.icons.filled.CastConnected
+import androidx.compose.material.icons.filled.Cast
+import androidx.compose.runtime.mutableStateListOf
+import android.net.wifi.WifiManager
+import org.videolan.libvlc.RendererItem
+import org.videolan.libvlc.RendererDiscoverer
 import org.videolan.libvlc.Media
 import org.videolan.libvlc.MediaPlayer
 import org.videolan.libvlc.util.VLCVideoLayout
@@ -148,6 +156,16 @@ class PlayerActivity : ComponentActivity() {
     private var note by mutableStateOf<String?>(null)
     private var hud by mutableStateOf<String?>(null)
     private var trackTick by mutableIntStateOf(0)
+    private var segs by mutableStateOf<List<Segment>>(emptyList())
+
+    // Casting (libVLC renderers: Chromecast and friends)
+    private val renderers = mutableStateListOf<RendererItem>()
+    private var castItem by mutableStateOf<RendererItem?>(null)
+    private var showCast by mutableStateOf(false)
+    private var curUrl: String? = null
+    private var videoLayout: VLCVideoLayout? = null
+    private val discoverers = mutableListOf<RendererDiscoverer>()
+    private var mcLock: WifiManager.MulticastLock? = null
 
     // Playback state
     private var cur: Playable? = null
@@ -185,16 +203,7 @@ class PlayerActivity : ComponentActivity() {
         vlc = LibVLC(this, arrayListOf("--audio-time-stretch", "--http-reconnect"))
         mp = MediaPlayer(vlc)
         ready = true
-        mp.setEventListener { ev ->
-            when (ev.type) {
-                MediaPlayer.Event.Playing -> { playing = true; buffering = false; onPlaying() }
-                MediaPlayer.Event.Paused -> playing = false
-                MediaPlayer.Event.Stopped -> playing = false
-                MediaPlayer.Event.Buffering -> buffering = ev.buffering < 100f
-                MediaPlayer.Event.EndReached -> runOnUiThread { onEnded() }
-                MediaPlayer.Event.EncounteredError -> runOnUiThread { onError() }
-            }
-        }
+        bindEvents(mp)
 
         setContent { JellyTheme { PlayerUi() } }
 
@@ -224,7 +233,7 @@ class PlayerActivity : ComponentActivity() {
         lastId = id
         loadJob?.cancel()
         loadJob = lifecycleScope.launch {
-            error = null; buffering = true; nextEp = null; nextDismissed = false; triedFallback = false
+            error = null; buffering = true; nextEp = null; nextDismissed = false; triedFallback = false; segs = emptyList()
             finishReport()
             val localFile = Downloads.fileFor(id)
             if (localFile != null) {
@@ -244,6 +253,10 @@ class PlayerActivity : ComponentActivity() {
                 val p = api.resolvePlayback(item, if (forceServer) com.jellydirect.app.data.StreamMode.SERVER else settings.streamMode, ticks)
                 cur = p
                 isLive = p.isLive
+                if (!p.isLive) lifecycleScope.launch {
+                    val found = runCatching { api.segments(id) }.getOrDefault(emptyList())
+                    if (lastId == id) segs = found
+                }
                 title = if (item.type == "Episode") (item.seriesName ?: item.name) else item.name
                 subtitle = if (item.type == "Episode") listOfNotNull(item.episodeCode, item.name).joinToString(" · ") else ""
                 if (p.isLive && channels.isEmpty()) {
@@ -262,6 +275,7 @@ class PlayerActivity : ComponentActivity() {
     }
 
     private fun open(url: String, startMs: Long) {
+        curUrl = url
         val s = settings
         val media = Media(vlc, Uri.parse(url))
         media.setHWDecoderEnabled(s.hw == HwMode.AUTO, false)
@@ -404,6 +418,77 @@ class PlayerActivity : ComponentActivity() {
 
     private fun touch() { poke++ }
 
+    private fun bindEvents(p: MediaPlayer) {
+        p.setEventListener { ev ->
+            when (ev.type) {
+                MediaPlayer.Event.Playing -> { playing = true; buffering = false; onPlaying() }
+                MediaPlayer.Event.Paused -> playing = false
+                MediaPlayer.Event.Stopped -> playing = false
+                MediaPlayer.Event.Buffering -> buffering = ev.buffering < 100f
+                MediaPlayer.Event.EndReached -> runOnUiThread { onEnded() }
+                MediaPlayer.Event.EncounteredError -> runOnUiThread { onError() }
+            }
+        }
+    }
+
+    /** Starts looking for cast devices on the Wi-Fi (once). Needs a multicast lock or Android drops the replies. */
+    private fun startDiscovery() {
+        if (!ready || discoverers.isNotEmpty()) return
+        runCatching {
+            val wifi = applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
+            mcLock = wifi.createMulticastLock("cast").also { it.setReferenceCounted(false); it.acquire() }
+        }
+        runCatching {
+            RendererDiscoverer.list(vlc)?.forEach { d ->
+                val rd = RendererDiscoverer(vlc, d.name)
+                rd.setEventListener { ev ->
+                    val item = ev.item
+                    when (ev.type) {
+                        RendererDiscoverer.Event.ItemAdded -> runOnUiThread { if (renderers.none { r -> r.name == item.name }) renderers.add(item) }
+                        RendererDiscoverer.Event.ItemDeleted -> runOnUiThread { renderers.removeAll { r -> r.name == item.name } }
+                    }
+                }
+                if (rd.start()) discoverers += rd
+            }
+        }
+    }
+
+    /** Switch output to a cast device (or back to this phone with null). libVLC only takes a renderer on a fresh player, so rebuild it and resume. */
+    private fun castTo(item: RendererItem?) {
+        showCast = false
+        val url = curUrl
+        if (!ready || url == null) return
+        val pos = posMs
+        castItem = item
+        error = null; buffering = true; playing = false
+        val old = mp
+        old.setEventListener(null)
+        runCatching { old.detachViews() }
+        Thread { try { old.stop(); old.release() } catch (_: Throwable) {} }.start()
+        val fresh = MediaPlayer(vlc)
+        if (item != null) fresh.setRenderer(item)
+        bindEvents(fresh)
+        mp = fresh
+        videoLayout?.let { fresh.attachViews(it, null, true, false) }
+        fresh.setVideoScale(aspects[aspectIdx].second)
+        rate = 1f
+        startedReport = false
+        open(url, pos)
+    }
+
+    private fun upNextVisible(): Boolean =
+        nextEp != null && !nextDismissed && !isLive && lenMs > 0 && lenMs - posMs < 20_000L && !inPip && !controls
+
+    /** The intro/credits range the playhead is inside right now, if any. */
+    private fun activeSeg(): Segment? =
+        if (isLive || inPip) null else segs.firstOrNull { posMs >= it.startMs && posMs < it.endMs - 1500L }
+
+    private fun skip(s: Segment) {
+        // Credits that run to the end: finish the episode the same way it would end naturally (plays the next one).
+        if (s.kind == "Outro" && (s.endMs == Long.MAX_VALUE || (lenMs > 0 && s.endMs >= lenMs - 3000L))) onEnded()
+        else seekTo(s.endMs)
+    }
+
     private fun togglePlay() {
         if (mp.isPlaying) mp.pause() else mp.play()
         touch()
@@ -440,6 +525,7 @@ class PlayerActivity : ComponentActivity() {
     }
 
     private fun enterPip() {
+        if (castItem != null) return
         if (isTv) return
         runCatching {
             enterPictureInPictureMode(PictureInPictureParams.Builder().setAspectRatio(Rational(16, 9)).build())
@@ -473,7 +559,7 @@ class PlayerActivity : ComponentActivity() {
 
     override fun onStop() {
         super.onStop()
-        if (ready && !isInPictureInPictureMode) {
+        if (ready && !isInPictureInPictureMode && castItem == null) {
             wasPlaying = mp.isPlaying
             mp.pause()
             report(paused = true)
@@ -491,9 +577,12 @@ class PlayerActivity : ComponentActivity() {
         finishReport()
         val player = mp
         mp.setEventListener(null)
+        val ds = discoverers.toList()
+        runCatching { mcLock?.release() }
         // Releasing libVLC can block for a moment, so it is done off the UI thread.
         Thread {
             try {
+                ds.forEach { runCatching { it.stop(); it.release() } }
                 player.stop()
                 player.detachViews()
                 player.release()
@@ -523,7 +612,11 @@ class PlayerActivity : ComponentActivity() {
             }
             if (!controls && !showTracks && error == null) {
                 when (e.keyCode) {
-                    KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> { togglePlay(); controls = true; return true }
+                    KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> {
+                        val sk = activeSeg()
+                        if (sk != null && !upNextVisible()) { skip(sk); return true }
+                        togglePlay(); controls = true; return true
+                    }
                     KeyEvent.KEYCODE_DPAD_LEFT -> { seekBy(-s.skipBackSec * 1000L); return true }
                     KeyEvent.KEYCODE_DPAD_RIGHT -> { seekBy(s.skipFwdSec * 1000L); return true }
                     KeyEvent.KEYCODE_DPAD_UP -> { if (isLive) channelStep(1) else controls = true; return true }
@@ -545,8 +638,8 @@ class PlayerActivity : ComponentActivity() {
         val am = remember { getSystemService(Context.AUDIO_SERVICE) as AudioManager }
 
         LaunchedEffect(controls, inPip) { if (controls && !inPip) runCatching { fr.requestFocus() } }
-        LaunchedEffect(controls, playing, showTracks, poke) {
-            if (controls && playing && !showTracks) { delay(4500); controls = false }
+        LaunchedEffect(controls, playing, showTracks, showCast, poke) {
+            if (controls && playing && !showTracks && !showCast) { delay(4500); controls = false }
         }
         LaunchedEffect(hud) { if (hud != null) { delay(1200); hud = null } }
         LaunchedEffect(note) { if (note != null) { delay(3500); note = null } }
@@ -558,6 +651,7 @@ class PlayerActivity : ComponentActivity() {
             AndroidView(
                 factory = { ctx ->
                     VLCVideoLayout(ctx).also { layout ->
+                        videoLayout = layout
                         layout.addOnAttachStateChangeListener(object : View.OnAttachStateChangeListener {
                             override fun onViewAttachedToWindow(v: View) {
                                 mp.attachViews(layout, null, true, false)
@@ -620,6 +714,9 @@ class PlayerActivity : ComponentActivity() {
                 Text(it, Modifier.align(Alignment.TopCenter).padding(top = 48.dp)
                     .background(Color(0xAA000000), RoundedCornerShape(8.dp)).padding(12.dp, 6.dp))
             }
+            castItem?.let {
+                Text("Casting to ${it.displayName}", Modifier.align(Alignment.Center).padding(top = 72.dp), color = Color(0xFFB0A8AE), style = Type.bodyMedium)
+            }
             note?.let {
                 Text(it, Modifier.align(Alignment.TopCenter).padding(top = 96.dp)
                     .background(Color(0xCC000000), RoundedCornerShape(8.dp)).padding(12.dp, 6.dp),
@@ -633,6 +730,7 @@ class PlayerActivity : ComponentActivity() {
                     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         Button(onClick = { lastId?.let { play(it, false) } }) { Text("Retry") }
                         TextButton(onClick = { lastId?.let { play(it, false, forceServer = true) } }) { Text("Try via server") }
+                        if (castItem != null) TextButton(onClick = { castTo(null) }) { Text("Play here") }
                         TextButton(onClick = { finish() }) { Text("Close") }
                     }
                 }
@@ -640,7 +738,9 @@ class PlayerActivity : ComponentActivity() {
 
             // Up-next card for episodes.
             val n = nextEp
-            if (n != null && !nextDismissed && !isLive && lenMs > 0 && lenMs - posMs < 20_000L && !inPip && !controls) {
+            val seg = activeSeg()
+            if (seg != null && !upNextVisible()) SkipButton(seg, lift = controls)
+            if (n != null && upNextVisible()) {
                 Column(
                     Modifier.align(Alignment.BottomEnd).padding(24.dp).background(Color(0xDD171419), RoundedCornerShape(12.dp)).padding(14.dp),
                     verticalArrangement = Arrangement.spacedBy(6.dp),
@@ -660,6 +760,22 @@ class PlayerActivity : ComponentActivity() {
             ) { Controls(fr) }
             if (showTracks) TracksDialog()
             if (showSpeed) SpeedDialog()
+            if (showCast) CastDialog()
+        }
+    }
+
+    @Composable
+    private fun BoxScope.SkipButton(seg: Segment, lift: Boolean) {
+        val shape = RoundedCornerShape(10.dp)
+        Row(
+            Modifier.align(Alignment.BottomEnd).padding(end = 24.dp, bottom = if (lift) 132.dp else 28.dp)
+                .focusClick(shape) { skip(seg) }
+                .background(Color(0xEEFFFFFF), shape).padding(horizontal = 18.dp, vertical = 10.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(seg.label, style = Type.labelLarge, color = Color(0xFF111114))
+            Icon(Icons.Filled.SkipNext, null, tint = Color(0xFF111114))
         }
     }
 
@@ -743,10 +859,30 @@ class PlayerActivity : ComponentActivity() {
                     Action(Icons.Filled.AspectRatio, "Aspect") { cycleAspect() }
                     val up = nextEp
                     if (up != null && !isLive) Action(Icons.Filled.SkipNext, "Next Episode") { play(up.id, true) }
+                    if (!isTv) Action(if (castItem != null) Icons.Filled.CastConnected else Icons.Filled.Cast, if (castItem != null) "Casting" else "Cast") { startDiscovery(); showCast = true }
                     if (!isTv) Action(Icons.Filled.PictureInPictureAlt, "PiP") { enterPip() }
                 }
             }
         }
+    }
+
+    @Composable
+    private fun CastDialog() {
+        AlertDialog(
+            onDismissRequest = { showCast = false },
+            containerColor = Color(0xFF231F26),
+            title = { Text("Cast to") },
+            text = {
+                Column {
+                    TrackRow("This device", castItem == null) { if (castItem != null) castTo(null) else showCast = false }
+                    renderers.forEach { r -> TrackRow(r.displayName, castItem?.name == r.name) { castTo(r) } }
+                    if (renderers.isEmpty()) {
+                        Text("Looking for devices on your Wi-Fi...", Modifier.padding(top = 10.dp), color = InkDim, style = Type.bodySmall)
+                    }
+                }
+            },
+            confirmButton = { TextButton(onClick = { showCast = false }) { Text("Close") } },
+        )
     }
 
     @Composable

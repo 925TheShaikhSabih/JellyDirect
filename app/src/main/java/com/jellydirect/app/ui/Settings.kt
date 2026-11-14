@@ -110,6 +110,7 @@ fun SettingsScreen(onAddAccount: (String?) -> Unit) {
         Opt("Play next episode automatically", s.autoNext, listOf(true to "On", false to "Off")) { v -> up { it.copy(autoNext = v) } }
         Opt("Skip back", s.skipBackSec, listOf(5 to "5s", 10 to "10s", 15 to "15s")) { v -> up { it.copy(skipBackSec = v) } }
         Opt("Skip forward", s.skipFwdSec, listOf(10 to "10s", 30 to "30s", 60 to "60s")) { v -> up { it.copy(skipFwdSec = v) } }
+        UpdateRow()
         api?.let { LiveDiag(it) }
     }
 }

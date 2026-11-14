@@ -32,6 +32,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import com.jellydirect.app.ui.Splash
+import com.jellydirect.app.ui.UpdateHost
 import com.jellydirect.app.ui.DownloadsScreen
 import com.jellydirect.app.data.Downloads
 import android.net.NetworkCapabilities
@@ -133,6 +134,7 @@ class MainActivity : ComponentActivity() {
                             if (acc.key != app.store.activeKey) { MemCache.map.clear(); app.switchTo(acc) }
                             chosen = true
                         } else Shell(a)
+                        if (chosen && !adding) UpdateHost()
                         if (!splashDone) Splash { splashDone = true }
                     }
                 }

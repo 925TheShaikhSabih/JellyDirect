@@ -5,6 +5,8 @@ import com.jellydirect.app.BuildConfig
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObjectBuilder
@@ -296,6 +298,41 @@ class JellyApi(
             "fields" to "Overview",
         ),
     ).items.firstOrNull { it.id != currentEpisodeId }
+
+    /**
+     * Intro / credits / recap ranges for an item. Tries Jellyfin 10.10's media segments, then the Intro Skipper
+     * plugin's older endpoint, then chapters named like "Intro" or "Credits". Each kind keeps its first hit.
+     */
+    suspend fun segments(itemId: String): List<Segment> {
+        val out = mutableListOf<Segment>()
+        fun add(s: Segment) { if (s.endMs > s.startMs && out.none { it.kind == s.kind }) out += s }
+        fun done() = out.any { it.kind == "Intro" } && out.any { it.kind == "Outro" }
+
+        runCatching {
+            get<SegList>("/MediaSegments/$itemId").items.forEach { d ->
+                val kind = when (d.type) { "Intro" -> "Intro"; "Outro" -> "Outro"; "Recap" -> "Recap"; else -> null }
+                if (kind != null) add(Segment(kind, d.start / 10_000L, d.end / 10_000L))
+            }
+        }
+        if (!done() && out.none { it.kind == "Intro" }) runCatching {
+            val t = get<IntroDto>("/Episode/$itemId/IntroTimestamps/v1")
+            if (t.valid) add(Segment("Intro", (t.start * 1000).toLong(), (t.end * 1000).toLong()))
+        }
+        if (!done()) runCatching {
+            val ch = get<ChapItem>("/Users/${uid()}/Items/$itemId", mapOf("fields" to "Chapters"))
+            val total = if (ch.runtime > 0) ch.runtime / 10_000L else Long.MAX_VALUE
+            val introRx = Regex("(?i)^\\s*(intro(duction)?|opening|op)\\b")
+            val outroRx = Regex("(?i)\\b(credits?|outro|ending|closing)\\b")
+            ch.chapters.forEachIndexed { i, c ->
+                val name = c.name.orEmpty()
+                val start = c.start / 10_000L
+                val end = ch.chapters.getOrNull(i + 1)?.let { n -> n.start / 10_000L } ?: total
+                if (introRx.containsMatchIn(name)) add(Segment("Intro", start, end))
+                else if (outroRx.containsMatchIn(name)) add(Segment("Outro", start, end))
+            }
+        }
+        return out
+    }
 
     suspend fun genres(parentId: String?, types: String?): List<Item> = get<ItemsResult>(
         "/Genres",
@@ -680,3 +717,28 @@ class JellyApi(
     fun channelLogo(item: Item, maxWidth: Int = 200): String? =
         item.imageTags["Primary"]?.let { imageUrl(item.id, "Primary", it, maxWidth) }
 }
+
+/** A skippable stretch of an episode or movie. [kind] is "Intro", "Outro" or "Recap"; times are milliseconds. */
+data class Segment(val kind: String, val startMs: Long, val endMs: Long) {
+    val label: String get() = when (kind) { "Intro" -> "Skip Intro"; "Recap" -> "Skip Recap"; else -> "Skip Credits" }
+}
+
+@Serializable private data class SegDto(
+    @SerialName("Type") val type: String = "",
+    @SerialName("StartTicks") val start: Long = 0,
+    @SerialName("EndTicks") val end: Long = 0,
+)
+@Serializable private data class SegList(@SerialName("Items") val items: List<SegDto> = emptyList())
+@Serializable private data class IntroDto(
+    @SerialName("Valid") val valid: Boolean = false,
+    @SerialName("IntroStart") val start: Double = 0.0,
+    @SerialName("IntroEnd") val end: Double = 0.0,
+)
+@Serializable private data class ChapDto(
+    @SerialName("StartPositionTicks") val start: Long = 0,
+    @SerialName("Name") val name: String? = null,
+)
+@Serializable private data class ChapItem(
+    @SerialName("Chapters") val chapters: List<ChapDto> = emptyList(),
+    @SerialName("RunTimeTicks") val runtime: Long = 0,
+)
