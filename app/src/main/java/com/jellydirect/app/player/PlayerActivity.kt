@@ -86,6 +86,7 @@ import com.jellydirect.app.data.episodeCode
 import com.jellydirect.app.data.formatClock
 import com.jellydirect.app.data.progress
 import com.jellydirect.app.ui.Accent
+import com.jellydirect.app.ui.InkDim
 import com.jellydirect.app.ui.AlertDialog
 import com.jellydirect.app.ui.Button
 import com.jellydirect.app.ui.CircularProgressIndicator
